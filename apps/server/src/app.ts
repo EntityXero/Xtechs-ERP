@@ -3,11 +3,12 @@ import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { randomUUID } from 'node:crypto';
 import type { EnvConfig } from '@xtechs/shared';
-import { AppError, ValidationError } from './lib/errors.js';
+import { AppError } from './lib/errors.js';
 import authPlugin from './plugins/auth.js';
 import tenantContextPlugin from './plugins/tenant-context.js';
 import auditPlugin from './plugins/audit.js';
 import { healthRoutes } from './routes/health.js';
+import { authRoutes } from './routes/auth.js';
 
 /**
  * Fastify app factory.
@@ -34,12 +35,13 @@ export async function buildApp(config: EnvConfig) {
   await app.register(sensible);
 
   // --- ERP plugins (registration order matters) ---
-  await app.register(authPlugin);
+  await app.register(authPlugin, { jwtSecret: config.JWT_SECRET });
   await app.register(tenantContextPlugin);
   await app.register(auditPlugin);
 
   // --- Routes ---
   await app.register(healthRoutes);
+  await app.register(authRoutes, { config });
 
   // --- Global error handler ---
   app.setErrorHandler((error: Error, _request, reply) => {

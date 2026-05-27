@@ -5,3 +5,4 @@ export { users } from './users.js';
 export { roles, userRoles } from './roles.js';
 export { permissions, rolePermissions } from './permissions.js';
 export { auditLogs } from './audit-logs.js';
+export { refreshTokens } from './refresh-tokens.js';

@@ -29,6 +29,7 @@
   "dependencies": {
     "drizzle-orm": "^0.44.0",
     "postgres": "^3.4.0",
+    "bcryptjs": "^3.0.0",
     "@xtechs/shared": "workspace:*"
   },
   "devDependencies": {

@@ -8,6 +8,13 @@
       "when": 1779859094320,
       "tag": "0000_spooky_colleen_wing",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779862301556,
+      "tag": "0001_fuzzy_zombie",
+      "breakpoints": true
     }
   ]
 }

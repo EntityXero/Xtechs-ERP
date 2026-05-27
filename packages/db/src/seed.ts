@@ -4,12 +4,18 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 config({ path: resolve(__dirname, '../../../.env') });
+
+import { hash } from 'bcryptjs';
 import { createDb } from './client.js';
-import { tenants, businesses, branches, users, roles } from './schema/index.js';
+import { tenants, businesses, branches, users, roles, userRoles } from './schema/index.js';
+import { eq, and } from 'drizzle-orm';
 
 /**
  * Development seed script.
- * Creates a default tenant, business, branch, admin user, and admin role.
+ * Creates a default tenant, business, branch, admin role, admin user,
+ * and assigns the admin user to the branch with the Admin role.
+ *
+ * Idempotent: checks if tenant already exists before inserting.
  *
  * Usage: pnpm db:seed
  */
@@ -24,6 +30,18 @@ async function seed() {
 
   try {
     console.log('🌱 Seeding database...');
+
+    // Check if already seeded
+    const [existingTenant] = await db
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(eq(tenants.slug, 'xtechs'))
+      .limit(1);
+
+    if (existingTenant) {
+      console.log('⚡ Database already seeded. Skipping.');
+      return;
+    }
 
     // 1. Create default tenant
     const [tenant] = await db.insert(tenants).values({
@@ -69,17 +87,28 @@ async function seed() {
 
     console.log(`  ✓ Role: ${adminRole!.name} (${adminRole!.id})`);
 
-    // 5. Create admin user (password: admin123! — CHANGE IN PRODUCTION)
-    // Using a placeholder hash — real hashing will be in the auth module
+    // 5. Create admin user with real bcrypt hash
+    // Default password: Admin123! (CHANGE IN PRODUCTION)
+    const passwordHash = await hash('Admin123!', 12);
+
     const [admin] = await db.insert(users).values({
       tenantId: tenant!.id,
       email: 'admin@xtechs.local',
-      passwordHash: '$placeholder_hash_replace_with_bcrypt',
+      passwordHash,
       displayName: 'System Administrator',
       status: 'active',
     }).returning();
 
     console.log(`  ✓ User: ${admin!.email} (${admin!.id})`);
+
+    // 6. Assign admin user to admin role in HQ branch
+    await db.insert(userRoles).values({
+      userId: admin!.id,
+      roleId: adminRole!.id,
+      branchId: branch!.id,
+    });
+
+    console.log(`  ✓ Assignment: ${admin!.email} → Admin @ ${branch!.name}`);
 
     console.log('\n✅ Seed complete!');
     console.log('\n📋 Summary:');
@@ -87,6 +116,7 @@ async function seed() {
     console.log(`   Business ID: ${business!.id}`);
     console.log(`   Branch ID:   ${branch!.id}`);
     console.log(`   Admin User:  ${admin!.email}`);
+    console.log(`   Password:    Admin123! (CHANGE IN PRODUCTION)`);
   } catch (error) {
     console.error('❌ Seed failed:', error);
     process.exit(1);
