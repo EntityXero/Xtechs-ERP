@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * ERP Global Styles
+ * Dark mode by default per spec.
+ * Minimal, data-dense, desktop-first.
+ */
+
+:root {
+  --background: #ffffff;
+  --foreground: #09090b;
+  --border: #e4e4e7;
+  --surface-1: #f8f9fa;
+  --surface-2: #f1f3f5;
+}
+
+.dark {
+  --background: #0a0a0b;
+  --foreground: #fafafa;
+  --border: #27272a;
+  --surface-1: #111113;
+  --surface-2: #18181b;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling for desktop ERP feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* Focus ring for keyboard navigation (accessibility-first per spec) */
+*:focus-visible {
+  outline: 2px solid #4c6ef5;
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background-color: #4c6ef5;
+  color: #ffffff;
+}

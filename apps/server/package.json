@@ -1,0 +1,30 @@
+{
+  "name": "@xtechs/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "fastify": "^5.3.0",
+    "@fastify/cors": "^11.0.0",
+    "@fastify/sensible": "^6.0.0",
+    "fastify-plugin": "^5.0.0",
+    "pino-pretty": "^13.0.0",
+    "dotenv": "^16.5.0",
+    "zod": "^3.25.0",
+    "@xtechs/db": "workspace:*",
+    "@xtechs/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "tsx": "^4.19.0",
+    "rimraf": "^6.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

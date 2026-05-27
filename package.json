@@ -1,0 +1,24 @@
+{
+  "name": "xtechs-erp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted, metadata-driven, document-centric ERP platform",
+  "packageManager": "pnpm@11.3.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "pnpm --filter @xtechs/db run generate",
+    "db:migrate": "pnpm --filter @xtechs/db run migrate",
+    "db:push": "pnpm --filter @xtechs/db run push",
+    "db:seed": "pnpm --filter @xtechs/db run seed",
+    "db:studio": "pnpm --filter @xtechs/db run studio",
+    "clean": "turbo run clean && rimraf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.8.0"
+  }
+}
