@@ -44,7 +44,26 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().uuid('Invalid refresh token format'),
 });
 
+export const createPermissionSchema = z.object({
+  resource: z.string().min(1).max(100),
+  action: z.string().min(1).max(50),
+  effect: z.enum(['allow', 'deny']).default('allow'),
+  description: z.string().max(500).optional(),
+});
+
+export const createRoleSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+});
+
+export const assignPermissionSchema = z.object({
+  permissionId: z.string().uuid(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type LoginWithBranchInput = z.infer<typeof loginWithBranchSchema>;
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+export type CreatePermissionInput = z.infer<typeof createPermissionSchema>;
+export type CreateRoleInput = z.infer<typeof createRoleSchema>;
+export type AssignPermissionInput = z.infer<typeof assignPermissionSchema>;

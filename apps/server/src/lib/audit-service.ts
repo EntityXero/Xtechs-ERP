@@ -39,7 +39,9 @@ export type AuditAction =
   | 'approve'
   | 'reject'
   | 'transition'
-  | 'register';
+  | 'register'
+  | 'assign'
+  | 'revoke';
 
 export interface AuditEntry {
   entityType: string;

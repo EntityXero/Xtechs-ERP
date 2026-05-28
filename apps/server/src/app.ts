@@ -3,12 +3,21 @@ import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { randomUUID } from 'node:crypto';
 import type { EnvConfig } from '@xtechs/shared';
+import { createDb, type Database } from '@xtechs/db';
 import { AppError } from './lib/errors.js';
 import authPlugin from './plugins/auth.js';
 import tenantContextPlugin from './plugins/tenant-context.js';
 import auditPlugin from './plugins/audit.js';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
+import { permissionRoutes } from './routes/permissions.js';
+
+// ─── Type Augmentation ───────────────────────────────────────
+declare module 'fastify' {
+  interface FastifyInstance {
+    db: Database;
+  }
+}
 
 /**
  * Fastify app factory.
@@ -26,6 +35,9 @@ export async function buildApp(config: EnvConfig) {
     requestTimeout: 30_000,
   });
 
+  const { db } = createDb(config.DATABASE_URL);
+  app.decorate('db', db);
+
   // --- Core plugins ---
   await app.register(cors, {
     origin: config.NODE_ENV === 'development' ? true : false,
@@ -42,6 +54,7 @@ export async function buildApp(config: EnvConfig) {
   // --- Routes ---
   await app.register(healthRoutes, { config });
   await app.register(authRoutes, { config });
+  await app.register(permissionRoutes);
 
   // --- Global error handler ---
   app.setErrorHandler((error: Error, _request, reply) => {
