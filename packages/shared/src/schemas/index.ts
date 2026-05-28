@@ -8,4 +8,6 @@ export { envSchema } from './env.js';
 export type { EnvConfig } from './env.js';
 
 export * from './metadata.js';
+export * from './document.js';
+
 

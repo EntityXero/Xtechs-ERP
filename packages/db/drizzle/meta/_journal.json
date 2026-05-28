@@ -22,6 +22,13 @@
       "when": 1779987359956,
       "tag": "0002_majestic_scream",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779988576412,
+      "tag": "0003_cuddly_squirrel_girl",
+      "breakpoints": true
     }
   ]
 }

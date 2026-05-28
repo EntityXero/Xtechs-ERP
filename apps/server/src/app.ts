@@ -12,6 +12,8 @@ import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
 import { permissionRoutes } from './routes/permissions.js';
 import { metadataRoutes } from './routes/metadata.js';
+import { documentRoutes } from './routes/documents.js';
+
 
 
 // ─── Type Augmentation ───────────────────────────────────────
@@ -58,6 +60,8 @@ export async function buildApp(config: EnvConfig) {
   await app.register(authRoutes, { config });
   await app.register(permissionRoutes);
   await app.register(metadataRoutes);
+  await app.register(documentRoutes);
+
 
 
   // --- Global error handler ---
