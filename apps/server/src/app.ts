@@ -13,6 +13,7 @@ import { authRoutes } from './routes/auth.js';
 import { permissionRoutes } from './routes/permissions.js';
 import { metadataRoutes } from './routes/metadata.js';
 import { documentRoutes } from './routes/documents.js';
+import { workflowRoutes } from './routes/workflows.js';
 
 
 
@@ -61,6 +62,7 @@ export async function buildApp(config: EnvConfig) {
   await app.register(permissionRoutes);
   await app.register(metadataRoutes);
   await app.register(documentRoutes);
+  await app.register(workflowRoutes);
 
 
 

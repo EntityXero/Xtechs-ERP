@@ -16,5 +16,9 @@ export {
   documentActivities,
   documentAttachments,
 } from './documents.js';
+export {
+  workflowApprovals,
+  workflowDelegations,
+} from './workflows.js';
 
 

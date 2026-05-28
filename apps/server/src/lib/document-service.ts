@@ -22,6 +22,7 @@ import { ValidationError, NotFoundError, ForbiddenError } from './errors.js';
 import { resolveMetadata, type ScopeContext } from './metadata-service.js';
 import { logAudit } from './audit-service.js';
 import { z } from 'zod';
+import { WorkflowService } from './workflow-service.js';
 
 /**
  * Transactional document types that strictly require sequential numbering.
@@ -551,97 +552,7 @@ export class DocumentService {
     event: string,
     auditCtx?: { requestId?: string; ipAddress?: string }
   ) {
-    const existing = await this.getDocumentDetails(db, context, documentId);
-    const tenantId = context.tenantId!;
-    const businessId = context.businessId!;
-    const branchId = context.branchId!;
-
-    // 1. Resolve workflow metadata configuration
-    let targetState: string | null = null;
-    const workflowMeta = await resolveMetadata(db, `${existing.type}_workflow`, context);
-
-    if (workflowMeta && workflowMeta.revision) {
-      const workflowPayload = workflowMeta.revision.payload as any;
-      const stateConfig = workflowPayload.states?.[existing.workflowState];
-      if (stateConfig && Array.isArray(stateConfig.transitions)) {
-        const matchingTransition = stateConfig.transitions.find((t: any) => t.event === event);
-        if (matchingTransition) {
-          targetState = matchingTransition.to;
-        }
-      }
-    }
-
-    // 2. Fall back to standard core lifecycle transitions if no custom workflow metadata is present
-    if (!targetState) {
-      const allowedStandard = DOCUMENT_TRANSITIONS[existing.workflowState as keyof typeof DOCUMENT_TRANSITIONS] || [];
-      // Look up target based on typical transitions
-      const matchingTarget = allowedStandard.find((state) => {
-        // Map common trigger events to states
-        if (event === 'submit' && state === DOCUMENT_LIFECYCLE.PENDING_APPROVAL) return true;
-        if (event === 'approve' && state === DOCUMENT_LIFECYCLE.APPROVED) return true;
-        if (event === 'post' && state === DOCUMENT_LIFECYCLE.POSTED) return true;
-        if (event === 'reverse' && state === DOCUMENT_LIFECYCLE.REVERSED) return true;
-        if (event === 'archive' && state === DOCUMENT_LIFECYCLE.ARCHIVED) return true;
-        if (event === 'reject' && state === DOCUMENT_LIFECYCLE.DRAFT) return true;
-        return false;
-      });
-
-      if (!matchingTarget) {
-        throw new ValidationError(`Invalid transition event '${event}' from state '${existing.workflowState}'`);
-      }
-      targetState = matchingTarget;
-    }
-
-    // 3. Save the state transition
-    const updatedDoc = await db.transaction(async (tx) => {
-      const [doc] = await tx
-        .update(documents)
-        .set({
-          workflowState: targetState!,
-          updatedBy: userId,
-          updatedAt: new Date(),
-        })
-        .where(eq(documents.id, documentId))
-        .returning();
-
-      if (!doc) {
-        throw new NotFoundError('Document', documentId);
-      }
-
-      // Log transition Activity
-      await tx.insert(documentActivities).values({
-        tenantId,
-        businessId,
-        branchId,
-        documentId: doc.id,
-        actorId: userId,
-        activityType: 'transitioned',
-        description: `Document transitioned from '${existing.workflowState}' to '${targetState}' via event '${event}'`,
-      });
-
-      return doc;
-    });
-
-    if (!updatedDoc) {
-      throw new NotFoundError('Document', documentId);
-    }
-
-    // 4. Audit Log
-    await logAudit(db, {
-      entityType: `document:${updatedDoc.type}`,
-      entityId: updatedDoc.id,
-      action: 'transition',
-      actorId: userId,
-      oldValues: { workflowState: existing.workflowState },
-      newValues: { workflowState: updatedDoc.workflowState },
-      tenantId,
-      businessId,
-      branchId,
-      requestId: auditCtx?.requestId,
-      ipAddress: auditCtx?.ipAddress,
-    });
-
-    return this.getDocumentDetails(db, context, documentId);
+    return WorkflowService.processTransition(db, context, userId, documentId, event, auditCtx);
   }
 
   /**

@@ -49,16 +49,22 @@ export const formDefPayloadSchema = z.object({
   $ref: z.string().optional(), // In case a form extends another form
 });
 
-/**
- * Workflow states and transitions.
- */
+export const declarativeConditionSchema = z.object({
+  field: z.string().min(1), // e.g. 'data.amount', 'createdBy'
+  operator: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'in']),
+  value: z.any(),
+});
+
 export const workflowTransitionSchema = z.object({
   event: z.string().min(1),
   to: z.string().min(1),
-  conditions: z.array(z.string()).optional(),
+  conditions: z.array(declarativeConditionSchema).optional(),
   approvals: z.object({
-    roles: z.array(z.string()),
+    roles: z.array(z.string()).optional(),
+    users: z.array(z.string().uuid()).optional(),
     requiredCount: z.number().int().min(1).default(1),
+    escalationHours: z.number().int().min(1).optional(),
+    escalateToRole: z.string().optional(),
   }).optional(),
 });
 

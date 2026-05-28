@@ -29,6 +29,13 @@
       "when": 1779988576412,
       "tag": "0003_cuddly_squirrel_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779990872221,
+      "tag": "0004_sudden_shocker",
+      "breakpoints": true
     }
   ]
 }
