@@ -19,6 +19,12 @@ export interface User {
  */
 export type TokenScope = 'branch' | 'all-branches';
 
+export interface ResolvedPermission {
+  resource: string;
+  action: string;
+  effect: 'allow' | 'deny';
+}
+
 /**
  * Authenticated user context attached to every request.
  * Includes tenant scope and resolved permissions.
@@ -29,6 +35,7 @@ export interface AuthContext {
   scope: TenantScope;
   tokenScope: TokenScope;
   roles: string[];
+  permissions?: ResolvedPermission[];
 }
 
 export interface LoginPayload {

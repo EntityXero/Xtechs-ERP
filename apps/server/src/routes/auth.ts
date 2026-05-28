@@ -21,6 +21,7 @@ import {
   ConflictError,
   ValidationError,
 } from '../lib/errors.js';
+import { logAudit } from '../lib/audit-service.js';
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -101,6 +102,20 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
         status: 'active',
       })
       .returning();
+
+    // Audit: user registered
+    await logAudit(db, {
+      entityType: 'user',
+      entityId: user!.id,
+      action: 'register',
+      actorId: user!.id,
+      newValues: { email, displayName, tenantId, businessId, branchId },
+      requestId: request.id,
+      tenantId,
+      businessId,
+      branchId,
+      ipAddress: request.clientIp,
+    });
 
     return reply.status(201).send({
       user: toUserResponse(user!),
@@ -224,6 +239,20 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
       .set({ lastLoginAt: new Date() })
       .where(eq(users.id, user.id));
 
+    // Audit: user logged in
+    await logAudit(db, {
+      entityType: 'user',
+      entityId: user.id,
+      action: 'login',
+      actorId: user.id,
+      newValues: { branchId: selectedBranchId, tokenScope },
+      requestId: request.id,
+      tenantId: selectedBranch.tenantId,
+      businessId: selectedBranch.businessId,
+      branchId: selectedBranchId,
+      ipAddress: request.clientIp,
+    });
+
     return reply.send({
       tokens: {
         accessToken,
@@ -346,6 +375,22 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
           isNull(refreshTokens.revokedAt),
         ),
       );
+
+    // Audit: user logged out
+    const auth = request.authContext;
+    if (auth) {
+      await logAudit(db, {
+        entityType: 'user',
+        entityId: auth.userId,
+        action: 'logout',
+        actorId: auth.userId,
+        requestId: request.id,
+        tenantId: auth.scope.tenantId,
+        businessId: auth.scope.businessId,
+        branchId: auth.scope.branchId,
+        ipAddress: request.clientIp,
+      });
+    }
 
     return reply.send({ success: true });
   });

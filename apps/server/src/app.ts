@@ -40,7 +40,7 @@ export async function buildApp(config: EnvConfig) {
   await app.register(auditPlugin);
 
   // --- Routes ---
-  await app.register(healthRoutes);
+  await app.register(healthRoutes, { config });
   await app.register(authRoutes, { config });
 
   // --- Global error handler ---
