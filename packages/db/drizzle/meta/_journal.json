@@ -15,6 +15,13 @@
       "when": 1779862301556,
       "tag": "0001_fuzzy_zombie",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779987359956,
+      "tag": "0002_majestic_scream",
+      "breakpoints": true
     }
   ]
 }

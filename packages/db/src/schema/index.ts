@@ -6,3 +6,5 @@ export { roles, userRoles } from './roles.js';
 export { permissions, rolePermissions } from './permissions.js';
 export { auditLogs } from './audit-logs.js';
 export { refreshTokens } from './refresh-tokens.js';
+export { metadataDefs, metadataRevisions, metadataDependencies } from './metadata.js';
+

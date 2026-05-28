@@ -206,6 +206,10 @@ async function seed() {
       { resource: 'branch', action: 'read', description: 'Read branch' },
       { resource: 'branch', action: 'update', description: 'Update branch' },
       { resource: 'branch', action: 'delete', description: 'Delete branch' },
+      { resource: 'metadata', action: 'create', description: 'Create metadata definition' },
+      { resource: 'metadata', action: 'read', description: 'Read metadata' },
+      { resource: 'metadata', action: 'update', description: 'Update metadata' },
+      { resource: 'metadata', action: 'delete', description: 'Delete metadata' },
     ];
 
     for (const p of defaultPerms) {

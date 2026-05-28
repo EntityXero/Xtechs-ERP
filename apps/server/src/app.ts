@@ -11,6 +11,8 @@ import auditPlugin from './plugins/audit.js';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
 import { permissionRoutes } from './routes/permissions.js';
+import { metadataRoutes } from './routes/metadata.js';
+
 
 // ─── Type Augmentation ───────────────────────────────────────
 declare module 'fastify' {
@@ -55,6 +57,8 @@ export async function buildApp(config: EnvConfig) {
   await app.register(healthRoutes, { config });
   await app.register(authRoutes, { config });
   await app.register(permissionRoutes);
+  await app.register(metadataRoutes);
+
 
   // --- Global error handler ---
   app.setErrorHandler((error: Error, _request, reply) => {

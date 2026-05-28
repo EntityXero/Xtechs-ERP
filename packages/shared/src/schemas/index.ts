@@ -6,3 +6,6 @@ export type { LoginInput, LoginWithBranchInput, RegisterUserInput, RefreshTokenI
 
 export { envSchema } from './env.js';
 export type { EnvConfig } from './env.js';
+
+export * from './metadata.js';
+
