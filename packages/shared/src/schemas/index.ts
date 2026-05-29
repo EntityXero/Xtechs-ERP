@@ -11,3 +11,5 @@ export * from './metadata.js';
 export * from './document.js';
 export * from './accounting.js';
 export * from './inventory.js';
+export * from './crm.js';
+export * from './sales.js';

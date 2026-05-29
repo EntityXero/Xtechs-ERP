@@ -256,8 +256,8 @@ async function runTests() {
 
     // Check balance snapshot
     let balance = await InventoryService.getStockBalance(db, contextBranchA, microchip.id, rawMaterialShelf.id, activeBatch.id);
-    console.log(`    Current Balance: Qty = ${balance.qty}, ValuationRate = $${balance.valuationRate}, TotalValue = $${balance.totalValue}`);
-    if (parseFloat(balance.qty) !== 10.0 || parseFloat(balance.valuationRate) !== 10.0) {
+    console.log(`    Current Balance: Qty = ${balance.onHand}, ValuationRate = $${balance.valuationRate}, TotalValue = $${balance.totalValue}`);
+    if (parseFloat(balance.onHand) !== 10.0 || parseFloat(balance.valuationRate) !== 10.0) {
       throw new Error('Initial stock balance setup error');
     }
 
@@ -300,8 +300,8 @@ async function runTests() {
 
     // Verify Moving Average Rate updates to $12.00
     balance = await InventoryService.getStockBalance(db, contextBranchA, microchip.id, rawMaterialShelf.id, activeBatch.id);
-    console.log(`    Recalculated Balance: Qty = ${balance.qty}, ValuationRate = $${balance.valuationRate}, TotalValue = $${balance.totalValue}`);
-    if (parseFloat(balance.qty) !== 15.0 || parseFloat(balance.valuationRate) !== 12.0 || parseFloat(balance.totalValue) !== 180.0) {
+    console.log(`    Recalculated Balance: Qty = ${balance.onHand}, ValuationRate = $${balance.valuationRate}, TotalValue = $${balance.totalValue}`);
+    if (parseFloat(balance.onHand) !== 15.0 || parseFloat(balance.valuationRate) !== 12.0 || parseFloat(balance.totalValue) !== 180.0) {
       throw new Error('Moving average cost calculation failed');
     }
     console.log('  ✓ Moving average rate updated accurately to $12.00.');
@@ -423,8 +423,8 @@ async function runTests() {
 
     // Validate balance decreases to 12 qty, rate remains $12.00, totalValue = $144.00
     balance = await InventoryService.getStockBalance(db, contextBranchA, microchip.id, rawMaterialShelf.id, activeBatch.id);
-    console.log(`    Remaining Balance: Qty = ${balance.qty}, ValuationRate = $${balance.valuationRate}, TotalValue = $${balance.totalValue}`);
-    if (parseFloat(balance.qty) !== 12.0 || parseFloat(balance.valuationRate) !== 12.0 || parseFloat(balance.totalValue) !== 144.0) {
+    console.log(`    Remaining Balance: Qty = ${balance.onHand}, ValuationRate = $${balance.valuationRate}, TotalValue = $${balance.totalValue}`);
+    if (parseFloat(balance.onHand) !== 12.0 || parseFloat(balance.valuationRate) !== 12.0 || parseFloat(balance.totalValue) !== 144.0) {
       throw new Error('Stock issue valuation updates were inaccurate');
     }
     console.log('  ✓ Stock issue correctly preserved moving average rate ($12) and adjusted totals.');
@@ -475,15 +475,15 @@ async function runTests() {
 
     // Verify source decreases to 8 units
     const srcBal = await InventoryService.getStockBalance(db, contextBranchA, microchip.id, rawMaterialShelf.id, activeBatch.id);
-    console.log(`    Source Balance: Qty = ${srcBal.qty}, ValuationRate = $${srcBal.valuationRate}, TotalValue = $${srcBal.totalValue}`);
-    if (parseFloat(srcBal.qty) !== 8.0) {
+    console.log(`    Source Balance: Qty = ${srcBal.onHand}, ValuationRate = $${srcBal.valuationRate}, TotalValue = $${srcBal.totalValue}`);
+    if (parseFloat(srcBal.onHand) !== 8.0) {
       throw new Error('Stock transfer source reduction error');
     }
 
     // Verify target increases to 4 units at moving rate $12.00
     const tgtBal = await InventoryService.getStockBalance(db, contextBranchA, microchip.id, secondaryShelf.id, activeBatch.id);
-    console.log(`    Target Balance: Qty = ${tgtBal.qty}, ValuationRate = $${tgtBal.valuationRate}, TotalValue = $${tgtBal.totalValue}`);
-    if (parseFloat(tgtBal.qty) !== 4.0 || parseFloat(tgtBal.valuationRate) !== 12.0) {
+    console.log(`    Target Balance: Qty = ${tgtBal.onHand}, ValuationRate = $${tgtBal.valuationRate}, TotalValue = $${tgtBal.totalValue}`);
+    if (parseFloat(tgtBal.onHand) !== 4.0 || parseFloat(tgtBal.valuationRate) !== 12.0) {
       throw new Error('Stock transfer target setup error');
     }
     console.log('  ✓ Transfer cost propagation verified.');
@@ -497,8 +497,8 @@ async function runTests() {
     console.log(`  ✓ Reversal document created successfully: ${reversalDoc.documentNumber}`);
 
     balance = await InventoryService.getStockBalance(db, contextBranchA, microchip.id, rawMaterialShelf.id, activeBatch.id);
-    console.log(`    Restored Balance: Qty = ${balance.qty}, ValuationRate = $${balance.valuationRate}, TotalValue = $${balance.totalValue}`);
-    if (parseFloat(balance.qty) !== 11.0 || parseFloat(balance.valuationRate) !== 12.0) {
+    console.log(`    Restored Balance: Qty = ${balance.onHand}, ValuationRate = $${balance.valuationRate}, TotalValue = $${balance.totalValue}`);
+    if (parseFloat(balance.onHand) !== 11.0 || parseFloat(balance.valuationRate) !== 12.0) {
       throw new Error('Reversal did not restore quantity correctly');
     }
     console.log('  ✓ Reversal correctly restored stock quantities and average rate.');

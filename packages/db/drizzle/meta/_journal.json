@@ -36,6 +36,13 @@
       "when": 1779990872221,
       "tag": "0004_sudden_shocker",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780055735134,
+      "tag": "0005_cultured_victor_mancha",
+      "breakpoints": true
     }
   ]
 }

@@ -133,9 +133,11 @@ export const stockBalances = pgTable('stock_balances', {
   warehouseId: uuid('warehouse_id').notNull().references(() => warehouses.id),
   batchId: uuid('batch_id').references(() => batches.id), // Optional batch level tracking
   
-  qty: decimal('qty', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Aggregate Quantity in Base UOM
+  onHand: decimal('on_hand', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Aggregate physical Quantity in Base UOM
+  reserved: decimal('reserved', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Quantity reserved for approved Sales Orders
+  available: decimal('available', { precision: 18, scale: 4 }).notNull().default('0.0000'), // quantity available (onHand - reserved)
   valuationRate: decimal('valuation_rate', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Moving average cost per unit in base currency at this warehouse/batch
-  totalValue: decimal('total_value', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Base currency total value (qty * valuationRate)
+  totalValue: decimal('total_value', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Base currency total value (onHand * valuationRate)
   ...timestampColumns(),
 }, (table) => [
   index('idx_stock_balances_scope').on(table.tenantId, table.businessId, table.branchId),

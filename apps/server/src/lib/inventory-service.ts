@@ -707,7 +707,8 @@ export class InventoryService {
             )
             .for('update');
 
-          const currentQty = currentBalance ? parseFloat(currentBalance.qty) : 0;
+          const currentQty = currentBalance ? parseFloat(currentBalance.onHand) : 0;
+          const currentReserved = currentBalance ? parseFloat(currentBalance.reserved) : 0;
           const currentRate = currentBalance ? parseFloat(currentBalance.valuationRate) : 0;
 
           // Perform non-hardcoded valuation calculation
@@ -738,10 +739,13 @@ export class InventoryService {
 
           // Upsert stock balance snapshot
           if (currentBalance) {
+            const newOnHand = currentQty + baseQty;
+            const newAvailable = newOnHand - currentReserved;
             await tx
               .update(stockBalances)
               .set({
-                qty: (currentQty + baseQty).toString(),
+                onHand: newOnHand.toString(),
+                available: newAvailable.toString(),
                 valuationRate: newValuationRate.toFixed(4),
                 totalValue: newTotalValue.toFixed(4),
                 updatedAt: new Date(),
@@ -755,7 +759,9 @@ export class InventoryService {
               itemId: item.id,
               warehouseId: targetWh,
               batchId: line.batchId || null,
-              qty: baseQty.toString(),
+              onHand: baseQty.toString(),
+              reserved: '0.0000',
+              available: baseQty.toString(),
               valuationRate: newValuationRate.toFixed(4),
               totalValue: totalValue.toFixed(4),
             });
@@ -786,13 +792,15 @@ export class InventoryService {
             );
           }
 
-          const currentQty = parseFloat(currentBalance.qty);
+          const currentOnHand = parseFloat(currentBalance.onHand);
+          const currentReserved = parseFloat(currentBalance.reserved);
+          const currentAvailable = parseFloat(currentBalance.available);
           const currentRate = parseFloat(currentBalance.valuationRate);
 
-          // 1. Negative stock prevention
-          if (currentQty < baseQty) {
+          // 1. Negative stock prevention (using available quantity)
+          if (currentAvailable < baseQty) {
             throw new ValidationError(
-              `Insufficient stock for item '${item.name}' in warehouse '${whMap.get(sourceWh)!.name}'. Available: ${currentQty}, Requested: ${baseQty}`
+              `Insufficient stock for item '${item.name}' in warehouse '${whMap.get(sourceWh)!.name}'. Available: ${currentAvailable}, Requested: ${baseQty}`
             );
           }
 
@@ -817,13 +825,15 @@ export class InventoryService {
           });
 
           // Update stock balance snapshot
-          const newQty = currentQty - baseQty;
-          const newTotalValue = newQty * currentRate;
+          const newOnHand = currentOnHand - baseQty;
+          const newAvailable = newOnHand - currentReserved;
+          const newTotalValue = newOnHand * currentRate;
 
           await tx
             .update(stockBalances)
             .set({
-              qty: newQty.toString(),
+              onHand: newOnHand.toString(),
+              available: newAvailable.toString(),
               totalValue: newTotalValue.toFixed(4),
               updatedAt: new Date(),
             })
@@ -856,13 +866,15 @@ export class InventoryService {
             );
           }
 
-          const srcQty = parseFloat(sourceBalance.qty);
+          const srcOnHand = parseFloat(sourceBalance.onHand);
+          const srcReserved = parseFloat(sourceBalance.reserved);
+          const srcAvailable = parseFloat(sourceBalance.available);
           const srcRate = parseFloat(sourceBalance.valuationRate);
 
           // 1. Negative stock prevention at source
-          if (srcQty < baseQty) {
+          if (srcAvailable < baseQty) {
             throw new ValidationError(
-              `Insufficient stock for item '${item.name}' in warehouse '${whMap.get(sourceWh)!.name}'. Available: ${srcQty}, Requested: ${baseQty}`
+              `Insufficient stock for item '${item.name}' in warehouse '${whMap.get(sourceWh)!.name}'. Available: ${srcAvailable}, Requested: ${baseQty}`
             );
           }
 
@@ -886,12 +898,14 @@ export class InventoryService {
           });
 
           // Update Source Balance
-          const newSrcQty = srcQty - baseQty;
-          const newSrcTotal = newSrcQty * srcRate;
+          const newSrcOnHand = srcOnHand - baseQty;
+          const newSrcAvailable = newSrcOnHand - srcReserved;
+          const newSrcTotal = newSrcOnHand * srcRate;
           await tx
             .update(stockBalances)
             .set({
-              qty: newSrcQty.toString(),
+              onHand: newSrcOnHand.toString(),
+              available: newSrcAvailable.toString(),
               totalValue: newSrcTotal.toFixed(4),
               updatedAt: new Date(),
             })
@@ -913,7 +927,8 @@ export class InventoryService {
             )
             .for('update');
 
-          const tgtQty = targetBalance ? parseFloat(targetBalance.qty) : 0;
+          const tgtQty = targetBalance ? parseFloat(targetBalance.onHand) : 0;
+          const tgtReserved = targetBalance ? parseFloat(targetBalance.reserved) : 0;
           const tgtRate = targetBalance ? parseFloat(targetBalance.valuationRate) : 0;
 
           // Target recalculates Moving Average using incoming source rate
@@ -944,10 +959,13 @@ export class InventoryService {
 
           // Update Target Balance
           if (targetBalance) {
+            const newTgtOnHand = tgtQty + baseQty;
+            const newTgtAvailable = newTgtOnHand - tgtReserved;
             await tx
               .update(stockBalances)
               .set({
-                qty: (tgtQty + baseQty).toString(),
+                onHand: newTgtOnHand.toString(),
+                available: newTgtAvailable.toString(),
                 valuationRate: newValuationRate.toFixed(4),
                 totalValue: newTotalValue.toFixed(4),
                 updatedAt: new Date(),
@@ -961,7 +979,9 @@ export class InventoryService {
               itemId: item.id,
               warehouseId: targetWh,
               batchId: line.batchId || null,
-              qty: baseQty.toString(),
+              onHand: baseQty.toString(),
+              reserved: '0.0000',
+              available: baseQty.toString(),
               valuationRate: newValuationRate.toFixed(4),
               totalValue: newTotalValue.toFixed(4),
             });
@@ -1082,7 +1102,8 @@ export class InventoryService {
           )
           .for('update');
 
-        const currentQty = balance ? parseFloat(balance.qty) : 0;
+        const currentQty = balance ? parseFloat(balance.onHand) : 0;
+        const currentReserved = balance ? parseFloat(balance.reserved) : 0;
         const currentRate = balance ? parseFloat(balance.valuationRate) : 0;
 
         // Swapped quantity
@@ -1132,10 +1153,13 @@ export class InventoryService {
 
         // Update balance snapshot
         if (balance) {
+          const newOnHand = currentQty + reversedQty;
+          const newAvailable = newOnHand - currentReserved;
           await tx
             .update(stockBalances)
             .set({
-              qty: (currentQty + reversedQty).toString(),
+              onHand: newOnHand.toString(),
+              available: newAvailable.toString(),
               valuationRate: newRate.toFixed(4),
               totalValue: newTotalVal.toFixed(4),
               updatedAt: new Date(),
@@ -1150,7 +1174,9 @@ export class InventoryService {
             itemId: line.itemId,
             warehouseId: line.warehouseId,
             batchId: line.batchId,
-            qty: reversedQty.toString(),
+            onHand: reversedQty.toString(),
+            reserved: '0.0000',
+            available: reversedQty.toString(),
             valuationRate: itemValuationRate.toFixed(4),
             totalValue: reversedTotalVal.toFixed(4),
           });
@@ -1224,7 +1250,9 @@ export class InventoryService {
       .limit(1);
 
     return balance || {
-      qty: '0.0000',
+      onHand: '0.0000',
+      reserved: '0.0000',
+      available: '0.0000',
       valuationRate: '0.0000',
       totalValue: '0.0000',
     };

@@ -49,6 +49,13 @@ export const RESOURCE_TYPES = {
   WAREHOUSE: 'warehouse',
   STOCK_LEDGER: 'stock_ledger',
   BATCH: 'batch',
+  ADDRESS: 'address',
+  CONTACT: 'contact',
+  CUSTOMER: 'customer',
+  LEAD: 'lead',
+  OPPORTUNITY: 'opportunity',
+  QUOTATION: 'quotation',
+  SALES_ORDER: 'sales_order',
 } as const;
 
 export type ResourceType =

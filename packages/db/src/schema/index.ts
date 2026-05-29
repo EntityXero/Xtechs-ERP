@@ -36,3 +36,16 @@ export {
   stockLedger,
   stockBalances,
 } from './inventory.js';
+export {
+  addresses,
+  contacts,
+  customers,
+  leads,
+  opportunities,
+} from './crm.js';
+export {
+  quotations,
+  quotationLines,
+  salesOrders,
+  salesOrderLines,
+} from './sales.js';
