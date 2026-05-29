@@ -45,6 +45,10 @@ export const RESOURCE_TYPES = {
   JOURNAL_ENTRY: 'journal_entry',
   FISCAL_YEAR: 'fiscal_year',
   CURRENCY: 'currency',
+  ITEM: 'item',
+  WAREHOUSE: 'warehouse',
+  STOCK_LEDGER: 'stock_ledger',
+  BATCH: 'batch',
 } as const;
 
 export type ResourceType =

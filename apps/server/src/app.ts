@@ -16,8 +16,7 @@ import { documentRoutes } from './routes/documents.js';
 import { workflowRoutes } from './routes/workflows.js';
 import { auditRoutes } from './routes/audit.js';
 import { accountingRoutes } from './routes/accounting.js';
-
-
+import { inventoryRoutes } from './routes/inventory.js';
 
 // ─── Type Augmentation ───────────────────────────────────────
 declare module 'fastify' {
@@ -67,6 +66,7 @@ export async function buildApp(config: EnvConfig) {
   await app.register(workflowRoutes);
   await app.register(auditRoutes);
   await app.register(accountingRoutes);
+  await app.register(inventoryRoutes);
 
 
 

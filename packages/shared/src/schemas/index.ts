@@ -10,6 +10,4 @@ export type { EnvConfig } from './env.js';
 export * from './metadata.js';
 export * from './document.js';
 export * from './accounting.js';
-
-
-
+export * from './inventory.js';

@@ -27,6 +27,12 @@ export {
   journalEntries,
   journalEntryLines,
 } from './accounting.js';
-
-
-
+export {
+  warehouses,
+  itemGroups,
+  items,
+  itemUoms,
+  batches,
+  stockLedger,
+  stockBalances,
+} from './inventory.js';
