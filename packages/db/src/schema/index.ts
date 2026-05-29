@@ -49,3 +49,14 @@ export {
   salesOrders,
   salesOrderLines,
 } from './sales.js';
+export {
+  departments,
+  designations,
+  employees,
+  leaveRequests,
+} from './hr.js';
+export {
+  suppliers,
+  purchaseOrders,
+  purchaseOrderLines,
+} from './purchasing.js';

@@ -136,6 +136,7 @@ export const stockBalances = pgTable('stock_balances', {
   onHand: decimal('on_hand', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Aggregate physical Quantity in Base UOM
   reserved: decimal('reserved', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Quantity reserved for approved Sales Orders
   available: decimal('available', { precision: 18, scale: 4 }).notNull().default('0.0000'), // quantity available (onHand - reserved)
+  ordered: decimal('ordered', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Quantity ordered on posted Purchase Orders
   valuationRate: decimal('valuation_rate', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Moving average cost per unit in base currency at this warehouse/batch
   totalValue: decimal('total_value', { precision: 18, scale: 4 }).notNull().default('0.0000'), // Base currency total value (onHand * valuationRate)
   ...timestampColumns(),

@@ -56,6 +56,12 @@ export const RESOURCE_TYPES = {
   OPPORTUNITY: 'opportunity',
   QUOTATION: 'quotation',
   SALES_ORDER: 'sales_order',
+  EMPLOYEE: 'employee',
+  DEPARTMENT: 'department',
+  DESIGNATION: 'designation',
+  LEAVE_REQUEST: 'leave_request',
+  SUPPLIER: 'supplier',
+  PURCHASE_ORDER: 'purchase_order',
 } as const;
 
 export type ResourceType =

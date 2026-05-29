@@ -36,6 +36,13 @@ async function run() {
     console.log('available column might already exist or failed:', err.message);
   }
 
+  try {
+    await sql`ALTER TABLE stock_balances ADD COLUMN ordered numeric(18, 4) NOT NULL DEFAULT '0.0000';`;
+    console.log('✓ Added column ordered');
+  } catch (err: any) {
+    console.log('ordered column might already exist or failed:', err.message);
+  }
+
   await sql.end();
   console.log('Done!');
 }
