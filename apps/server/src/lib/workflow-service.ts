@@ -729,10 +729,21 @@ export class WorkflowService {
       throw new ValidationError(`Approval request is already in '${approval.status}' status`);
     }
 
-    // Verify target branch scope (delegatee must exist or be compatible)
+    // Authorization: only the assigned user or an admin can delegate
+    let isAuthorized = false;
+    if (approval.assignedUserId === userId || approval.delegatedTo === userId) {
+      isAuthorized = true;
+    }
+    if (!isAuthorized) {
+      const isAdmin = await checkUserHasRole(db, userId, branchId, 'Admin');
+      if (isAdmin) isAuthorized = true;
+    }
+    if (!isAuthorized) {
+      throw new ForbiddenError('Not authorized to delegate this approval request');
+    }
+
+    // Update the approval to delegated status
     const [delegate] = await db
-      .select()
-      .from(workflowApprovals)
       .update(workflowApprovals)
       .set({
         delegatedTo: targetUserId,

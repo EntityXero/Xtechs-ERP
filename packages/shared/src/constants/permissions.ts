@@ -41,6 +41,10 @@ export const RESOURCE_TYPES = {
   DOCUMENT: 'document',
   AUDIT_LOG: 'audit_log',
   METADATA: 'metadata',
+  ACCOUNT: 'account',
+  JOURNAL_ENTRY: 'journal_entry',
+  FISCAL_YEAR: 'fiscal_year',
+  CURRENCY: 'currency',
 } as const;
 
 export type ResourceType =

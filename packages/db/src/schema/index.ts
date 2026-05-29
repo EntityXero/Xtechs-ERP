@@ -20,5 +20,13 @@ export {
   workflowApprovals,
   workflowDelegations,
 } from './workflows.js';
+export {
+  currencies,
+  fiscalYears,
+  accounts,
+  journalEntries,
+  journalEntryLines,
+} from './accounting.js';
+
 
 

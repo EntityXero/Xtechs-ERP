@@ -15,6 +15,7 @@ import { metadataRoutes } from './routes/metadata.js';
 import { documentRoutes } from './routes/documents.js';
 import { workflowRoutes } from './routes/workflows.js';
 import { auditRoutes } from './routes/audit.js';
+import { accountingRoutes } from './routes/accounting.js';
 
 
 
@@ -65,6 +66,7 @@ export async function buildApp(config: EnvConfig) {
   await app.register(documentRoutes);
   await app.register(workflowRoutes);
   await app.register(auditRoutes);
+  await app.register(accountingRoutes);
 
 
 
