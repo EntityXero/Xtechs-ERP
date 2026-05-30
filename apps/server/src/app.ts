@@ -21,6 +21,11 @@ import { crmRoutes } from './routes/crm.js';
 import { salesRoutes } from './routes/sales.js';
 import { hrRoutes } from './routes/hr.js';
 import { purchasingRoutes } from './routes/purchasing.js';
+import { reportsRoutes } from './routes/reports.js';
+
+// Initialize the background worker
+import './workers/reporting-worker.js';
+
 
 // ─── Type Augmentation ───────────────────────────────────────
 declare module 'fastify' {
@@ -75,6 +80,8 @@ export async function buildApp(config: EnvConfig) {
   await app.register(salesRoutes);
   await app.register(hrRoutes);
   await app.register(purchasingRoutes);
+  await app.register(reportsRoutes);
+
 
 
 

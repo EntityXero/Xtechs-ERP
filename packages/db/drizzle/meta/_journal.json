@@ -43,6 +43,13 @@
       "when": 1780055735134,
       "tag": "0005_cultured_victor_mancha",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780129364828,
+      "tag": "0006_marvelous_stick",
+      "breakpoints": true
     }
   ]
 }

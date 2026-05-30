@@ -15,3 +15,5 @@ export * from './crm.js';
 export * from './sales.js';
 export * from './hr.js';
 export * from './purchasing.js';
+export * from './reports.js';
+

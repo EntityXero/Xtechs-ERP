@@ -11,24 +11,26 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "fastify": "^5.3.0",
     "@fastify/cors": "^11.0.0",
     "@fastify/sensible": "^6.0.0",
-    "fastify-plugin": "^5.0.0",
-    "pino-pretty": "^13.0.0",
-    "bcryptjs": "^3.0.0",
-    "jose": "^6.0.0",
-    "drizzle-orm": "^0.44.0",
-    "postgres": "^3.4.0",
-    "dotenv": "^16.5.0",
-    "zod": "^3.25.0",
     "@xtechs/db": "workspace:*",
-    "@xtechs/shared": "workspace:*"
+    "@xtechs/shared": "workspace:*",
+    "bcryptjs": "^3.0.0",
+    "bullmq": "^5.77.6",
+    "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.44.0",
+    "fastify": "^5.3.0",
+    "fastify-plugin": "^5.0.0",
+    "ioredis": "^5.11.0",
+    "jose": "^6.0.0",
+    "pino-pretty": "^13.0.0",
+    "postgres": "^3.4.0",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
-    "typescript": "^5.8.0",
-    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0",
     "rimraf": "^6.0.0",
-    "@types/node": "^22.0.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
   }
 }

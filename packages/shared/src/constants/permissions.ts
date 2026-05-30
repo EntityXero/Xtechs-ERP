@@ -62,6 +62,8 @@ export const RESOURCE_TYPES = {
   LEAVE_REQUEST: 'leave_request',
   SUPPLIER: 'supplier',
   PURCHASE_ORDER: 'purchase_order',
+  REPORT_DEFINITION: 'report_definition',
+  REPORT_EXECUTION: 'report_execution',
 } as const;
 
 export type ResourceType =

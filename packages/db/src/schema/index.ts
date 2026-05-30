@@ -60,3 +60,8 @@ export {
   purchaseOrders,
   purchaseOrderLines,
 } from './purchasing.js';
+export {
+  reportDefinitions,
+  reportExecutions,
+} from './reports.js';
+
