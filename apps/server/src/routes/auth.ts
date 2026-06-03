@@ -5,7 +5,7 @@ import { users, branches, userRoles, roles, refreshTokens } from '@xtechs/db/sch
 import {
   loginWithBranchSchema,
   registerUserSchema,
-  refreshTokenSchema,
+  changePasswordSchema,
 } from '@xtechs/shared';
 import type { EnvConfig, TokenScope, UserResponse } from '@xtechs/shared';
 import {
@@ -32,6 +32,7 @@ function toUserResponse(user: {
   displayName: string;
   status: string;
   lastLoginAt: Date | null;
+  forcePasswordChange: boolean;
 }): UserResponse {
   return {
     id: user.id,
@@ -39,6 +40,7 @@ function toUserResponse(user: {
     displayName: user.displayName,
     status: user.status,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+    forcePasswordChange: user.forcePasswordChange,
   };
 }
 
@@ -215,6 +217,7 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
         branchId: selectedBranchId,
         tokenScope,
         roles: roleNames,
+        forcePasswordChange: user.forcePasswordChange,
       },
       config.JWT_SECRET,
       config.JWT_EXPIRES_IN,
@@ -253,23 +256,54 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
       ipAddress: request.clientIp,
     });
 
+    const isProd = config.NODE_ENV === 'production';
+    const refreshExpiresDate = new Date(Date.now() + refreshExpiresMs);
+
+    // Set HttpOnly cookies — secure in production, lax in dev
+    reply
+      .setCookie('access_token', accessToken, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: isProd,
+        path: '/',
+        // Access token max age matches JWT expiry (15m default)
+        maxAge: 60 * 15,
+      })
+      .setCookie('refresh_token', refreshTokenValue, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: isProd,
+        path: '/api/v1/auth/refresh',
+        expires: refreshExpiresDate,
+      });
+
+    // Resolve permissions for response
+    const { resolvePermissions } = await import('../lib/permission-service.js');
+    const permissions = await resolvePermissions(db, user.id, selectedBranchId);
+
     return reply.send({
-      tokens: {
-        accessToken,
-        refreshToken: refreshTokenValue,
-      },
       user: toUserResponse({ ...user, lastLoginAt: new Date() }),
+      scope: {
+        tenantId: selectedBranch.tenantId,
+        businessId: selectedBranch.businessId,
+        branchId: selectedBranchId,
+      },
+      tokenScope,
+      roles: roleNames,
+      permissions,
     });
   });
 
   // ─── POST /api/v1/auth/refresh ───────────────────────────
   fastify.post('/api/v1/auth/refresh', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = refreshTokenSchema.safeParse(request.body);
-    if (!body.success) {
-      throw new ValidationError('Validation failed', flattenZodErrors(body.error));
-    }
+    // Accept refresh token from HttpOnly cookie or request body
+    const cookieRefreshToken = (request.cookies as Record<string, string | undefined>)?.['refresh_token'];
+    const bodyRefreshToken = (request.body as { refreshToken?: string } | null)?.refreshToken;
+    const tokenValue = cookieRefreshToken ?? bodyRefreshToken;
 
-    const { refreshToken: tokenValue } = body.data;
+    if (!tokenValue) {
+      throw new UnauthorizedError('Missing refresh token');
+    }
 
     // Find the refresh token
     const [storedToken] = await db
@@ -321,7 +355,7 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
     const tokenScope: TokenScope = roleNames.includes('Admin') ? 'all-branches' : 'branch';
 
     // Sign new access token
-    const accessToken = await signAccessToken(
+    const newAccessToken = await signAccessToken(
       {
         sub: user.id,
         email: user.email,
@@ -330,51 +364,65 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
         branchId: storedToken.branchId,
         tokenScope,
         roles: roleNames,
+        forcePasswordChange: user.forcePasswordChange,
       },
       config.JWT_SECRET,
       config.JWT_EXPIRES_IN,
     );
 
-    // Generate new refresh token
+    // Generate new refresh token (rotation)
     const newRefreshToken = generateRefreshToken();
     const refreshExpiresMs = parseDuration(config.JWT_REFRESH_EXPIRES_IN);
+    const refreshExpiresDate = new Date(Date.now() + refreshExpiresMs);
 
     await db.insert(refreshTokens).values({
       userId: user.id,
       token: newRefreshToken,
-      expiresAt: new Date(Date.now() + refreshExpiresMs),
+      expiresAt: refreshExpiresDate,
       tenantId: storedToken.tenantId,
       businessId: storedToken.businessId,
       branchId: storedToken.branchId,
     });
 
-    return reply.send({
-      tokens: {
-        accessToken,
-        refreshToken: newRefreshToken,
-      },
-    });
+    const isProd = config.NODE_ENV === 'production';
+
+    reply
+      .setCookie('access_token', newAccessToken, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: isProd,
+        path: '/',
+        maxAge: 60 * 15,
+      })
+      .setCookie('refresh_token', newRefreshToken, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: isProd,
+        path: '/api/v1/auth/refresh',
+        expires: refreshExpiresDate,
+      });
+
+    return reply.send({ success: true });
   });
 
   // ─── POST /api/v1/auth/logout ────────────────────────────
   fastify.post('/api/v1/auth/logout', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = refreshTokenSchema.safeParse(request.body);
-    if (!body.success) {
-      throw new ValidationError('Validation failed', flattenZodErrors(body.error));
+    // Revoke refresh token from cookie or body
+    const cookieRefreshToken = (request.cookies as Record<string, string | undefined>)?.['refresh_token'];
+    const bodyRefreshToken = (request.body as { refreshToken?: string } | null)?.refreshToken;
+    const tokenValue = cookieRefreshToken ?? bodyRefreshToken;
+
+    if (tokenValue) {
+      await db
+        .update(refreshTokens)
+        .set({ revokedAt: new Date() })
+        .where(
+          and(
+            eq(refreshTokens.token, tokenValue),
+            isNull(refreshTokens.revokedAt),
+          ),
+        );
     }
-
-    const { refreshToken: tokenValue } = body.data;
-
-    // Revoke the refresh token
-    await db
-      .update(refreshTokens)
-      .set({ revokedAt: new Date() })
-      .where(
-        and(
-          eq(refreshTokens.token, tokenValue),
-          isNull(refreshTokens.revokedAt),
-        ),
-      );
 
     // Audit: user logged out
     const auth = request.authContext;
@@ -392,8 +440,14 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
       });
     }
 
+    const isProd = config.NODE_ENV === 'production';
+    reply
+      .clearCookie('access_token', { path: '/', secure: isProd, sameSite: 'strict' })
+      .clearCookie('refresh_token', { path: '/api/v1/auth/refresh', secure: isProd, sameSite: 'strict' });
+
     return reply.send({ success: true });
   });
+
 
   // ─── GET /api/v1/auth/me ─────────────────────────────────
   fastify.get('/api/v1/auth/me', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -412,13 +466,107 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
       throw new NotFoundError('User', auth.userId);
     }
 
+    const { resolvePermissions } = await import('../lib/permission-service.js');
+    const permissions = await resolvePermissions(db, auth.userId, auth.scope.branchId);
+
     return reply.send({
       user: toUserResponse(user),
       scope: auth.scope,
       tokenScope: auth.tokenScope,
       roles: auth.roles,
+      permissions,
     });
   });
+
+  // ─── POST /api/v1/auth/change-password ───────────────────
+  fastify.post(
+    '/api/v1/auth/change-password',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const auth = request.authContext;
+      if (!auth) {
+        throw new UnauthorizedError();
+      }
+
+      const body = changePasswordSchema.safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError('Validation failed', flattenZodErrors(body.error));
+      }
+
+      const { currentPassword, newPassword } = body.data;
+
+      // Fetch user from DB
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, auth.userId))
+        .limit(1);
+
+      if (!user) {
+        throw new NotFoundError('User', auth.userId);
+      }
+
+      // Verify current password
+      const valid = await verifyPassword(currentPassword, user.passwordHash);
+      if (!valid) {
+        throw new ValidationError('Current password incorrect', {
+          currentPassword: ['The password you entered is incorrect'],
+        });
+      }
+
+      // Hash new password
+      const passwordHash = await hashPassword(newPassword, config.BCRYPT_ROUNDS);
+
+      // Update password + reset forcePasswordChange to false
+      await db
+        .update(users)
+        .set({
+          passwordHash,
+          forcePasswordChange: false,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id));
+
+      // Issue new access token with forcePasswordChange set to false
+      const newAccessToken = await signAccessToken(
+        {
+          sub: user.id,
+          email: user.email,
+          tenantId: auth.scope.tenantId,
+          businessId: auth.scope.businessId,
+          branchId: auth.scope.branchId,
+          tokenScope: auth.tokenScope,
+          roles: auth.roles,
+          forcePasswordChange: false,
+        },
+        config.JWT_SECRET,
+        config.JWT_EXPIRES_IN,
+      );
+
+      const isProd = config.NODE_ENV === 'production';
+      reply.setCookie('access_token', newAccessToken, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: isProd,
+        path: '/',
+        maxAge: 60 * 15, // 15 minutes
+      });
+
+      // Audit: password changed
+      await logAudit(db, {
+        entityType: 'user',
+        entityId: user.id,
+        action: 'change_password',
+        actorId: user.id,
+        requestId: request.id,
+        tenantId: auth.scope.tenantId,
+        businessId: auth.scope.businessId,
+        branchId: auth.scope.branchId,
+        ipAddress: request.clientIp,
+      });
+
+      return reply.send({ success: true });
+    }
+  );
 }
 
 // ─── Zod error helper ────────────────────────────────────────

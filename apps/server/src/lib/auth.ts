@@ -37,6 +37,7 @@ export async function signAccessToken(
     branchId: string;
     tokenScope: TokenScope;
     roles: string[];
+    forcePasswordChange?: boolean;
   },
   secret: string,
   expiresIn: string,
@@ -50,6 +51,7 @@ export async function signAccessToken(
     branchId: payload.branchId,
     tokenScope: payload.tokenScope,
     roles: payload.roles,
+    forcePasswordChange: payload.forcePasswordChange,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(payload.sub)
@@ -78,6 +80,7 @@ export async function verifyAccessToken(
       branchId: payload['branchId'] as string,
       tokenScope: payload['tokenScope'] as TokenScope,
       roles: payload['roles'] as string[],
+      forcePasswordChange: payload['forcePasswordChange'] as boolean | undefined,
       iat: payload.iat as number,
       exp: payload.exp as number,
     };

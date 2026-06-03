@@ -43,7 +43,9 @@ export type AuditAction =
   | 'transition'
   | 'register'
   | 'assign'
-  | 'revoke';
+  | 'revoke'
+  | 'change_password'
+  | 'update_status';
 
 export interface AuditEntry {
   entityType: string;

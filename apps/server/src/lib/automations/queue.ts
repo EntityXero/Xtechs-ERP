@@ -7,7 +7,7 @@ export interface AutomationJobData {
   entityType?: string;
   entityId?: string;
   payload?: any;
-  context: Required<ScopeContext>;
+  context: Required<ScopeContext> & { userId?: string };
 }
 
 export const automationsQueue = new Queue<AutomationJobData>('automations', {

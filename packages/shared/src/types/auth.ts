@@ -7,6 +7,7 @@ export interface User {
   displayName: string;
   status: 'active' | 'suspended' | 'archived';
   lastLoginAt: Date | null;
+  forcePasswordChange: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +37,7 @@ export interface AuthContext {
   tokenScope: TokenScope;
   roles: string[];
   permissions?: ResolvedPermission[];
+  forcePasswordChange?: boolean;
 }
 
 export interface LoginPayload {
@@ -52,6 +54,7 @@ export interface TokenPayload {
   branchId: string;
   tokenScope: TokenScope;
   roles: string[];
+  forcePasswordChange?: boolean;
   iat: number;
   exp: number;
 }
@@ -63,6 +66,7 @@ export interface UserResponse {
   displayName: string;
   status: string;
   lastLoginAt: string | null;
+  forcePasswordChange: boolean;
 }
 
 export interface AuthTokens {

@@ -100,7 +100,7 @@ export const automationsWorker = new Worker<AutomationJobData>(
           entityType: entityType || null,
           entityId: entityId || null,
           status: 'success',
-        });
+        } as any);
       } catch (logErr: any) {
         console.error(`[AutomationWorker] Failed to write success to automation_logs:`, logErr.message);
       }
@@ -118,7 +118,7 @@ export const automationsWorker = new Worker<AutomationJobData>(
           entityId: entityId || null,
           status: 'failed',
           errorMessage: err.message || 'Unknown error occurred',
-        });
+        } as any);
       } catch (logErr: any) {
         console.error(`[AutomationWorker] Failed to write failure to automation_logs:`, logErr.message);
       }

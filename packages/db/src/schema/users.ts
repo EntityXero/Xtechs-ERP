@@ -1,4 +1,4 @@
-import { pgTable, varchar, uuid, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, uuid, timestamp, index, boolean } from 'drizzle-orm/pg-core';
 import { pkColumn, timestampColumns } from './_columns.js';
 import { tenants } from './tenants.js';
 
@@ -10,6 +10,7 @@ export const users = pgTable('users', {
   displayName: varchar('display_name', { length: 255 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('active'),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  forcePasswordChange: boolean('force_password_change').notNull().default(false),
   ...timestampColumns(),
 }, (table) => [
   index('idx_users_tenant').on(table.tenantId),

@@ -39,7 +39,7 @@ export class SearchService {
         urlPath,
         metadata,
         documentVector: sql`to_tsvector('english', ${textToVector})` as any,
-      })
+      } as any)
       .onConflictDoUpdate({
         target: [searchIndexes.entityType, searchIndexes.entityId],
         set: {

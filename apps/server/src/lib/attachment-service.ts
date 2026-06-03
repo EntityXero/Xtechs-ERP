@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { eq, and, isNull } from 'drizzle-orm';
 import type { Database } from '@xtechs/db';
-import { attachments } from '@xtechs/db/schema';
+import { attachments, documentAttachments } from '@xtechs/db/schema';
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZES } from '@xtechs/shared';
 import { getStorageProvider } from './storage/index.js';
 import { ValidationError, NotFoundError, ForbiddenError } from './errors.js';
@@ -180,6 +180,23 @@ export class AttachmentService {
       throw new ValidationError('Failed to store attachment metadata.');
     }
 
+    // Synchronize to documentAttachments if linking to a document
+    if (entityType === 'document' || entityType.startsWith('document:')) {
+      await db
+        .insert(documentAttachments)
+        .values({
+          tenantId,
+          businessId,
+          branchId,
+          documentId: entityId,
+          uploaderId: userId,
+          fileName,
+          fileType: detectedMime,
+          fileSize,
+          storagePath,
+        });
+    }
+
     // 9. Run Async hooks (OCR, thumbnails)
     // Run concurrently or as background tasks (here run as non-blocking promises)
     this.runOcr(buffer, detectedMime, newAttachment.id).catch(console.error);
@@ -311,6 +328,18 @@ export class AttachmentService {
     await db
       .delete(attachments)
       .where(eq(attachments.id, attachmentId));
+
+    // Synchronize to documentAttachments if linked to a document
+    if (attachment.entityType === 'document' || attachment.entityType.startsWith('document:')) {
+      await db
+        .delete(documentAttachments)
+        .where(
+          and(
+            eq(documentAttachments.documentId, attachment.entityId),
+            eq(documentAttachments.storagePath, attachment.storagePath)
+          )
+        );
+    }
 
     // 3. Log Audit
     await logAudit(db, {

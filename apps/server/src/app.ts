@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import sensible from '@fastify/sensible';
 import { randomUUID } from 'node:crypto';
 import type { EnvConfig } from '@xtechs/shared';
@@ -10,6 +11,8 @@ import tenantContextPlugin from './plugins/tenant-context.js';
 import auditPlugin from './plugins/audit.js';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
+import { userRoutes } from './routes/users.js';
+import { tenantRoutes } from './routes/tenants.js';
 import { permissionRoutes } from './routes/permissions.js';
 import { metadataRoutes } from './routes/metadata.js';
 import { documentRoutes } from './routes/documents.js';
@@ -89,6 +92,12 @@ export async function buildApp(config: EnvConfig) {
   await app.register(sensible);
   await app.register(multipart);
 
+  // Register cookie plugin BEFORE auth plugin (auth plugin reads cookies)
+  await app.register(cookie, {
+    secret: config.COOKIE_SECRET ?? config.JWT_SECRET,
+    hook: 'onRequest',
+  });
+
 
   // --- ERP plugins (registration order matters) ---
   await app.register(authPlugin, { jwtSecret: config.JWT_SECRET });
@@ -98,6 +107,8 @@ export async function buildApp(config: EnvConfig) {
   // --- Routes ---
   await app.register(healthRoutes, { config });
   await app.register(authRoutes, { config });
+  await app.register(userRoutes);
+  await app.register(tenantRoutes);
   await app.register(permissionRoutes);
   await app.register(metadataRoutes);
   await app.register(documentRoutes);

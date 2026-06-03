@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   FileText,
@@ -15,9 +17,8 @@ import {
   LogOut,
   User,
   Shield,
-  Key,
 } from 'lucide-react';
-import { useUIStore } from '@/store/ui-store';
+import { useAuthStore } from '@/store/auth-store';
 import { cn } from '@/lib/utils';
 import {
   Sidebar,
@@ -78,9 +79,13 @@ const businesses = [
 ];
 
 export function AppSidebar() {
-  const activeModule = useUIStore((state) => state.activeModule);
-  const setActiveModule = useUIStore((state) => state.setActiveModule);
+  const pathname = usePathname();
+  const { user, logout } = useAuthStore();
   const [selectedBiz, setSelectedBiz] = React.useState<{ id: string; name: string; branch: string }>(businesses[0]!);
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border bg-sidebar select-none">
@@ -139,12 +144,12 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {group.items.map((item) => {
-                  const isActive = activeModule === item.id;
+                  const isActive = pathname === item.path || (item.path !== '/' && pathname.startsWith(item.path));
                   return (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
+                        asChild
                         isActive={isActive}
-                        onClick={() => setActiveModule(item.id)}
                         className={cn(
                           'h-8 px-2.5 py-1 text-xs font-medium font-sans flex items-center gap-2.5 rounded-md transition-colors',
                           isActive
@@ -153,8 +158,10 @@ export function AppSidebar() {
                         )}
                         tooltip={item.label}
                       >
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        <span>{item.label}</span>
+                        <Link href={item.path}>
+                          <item.icon className="h-4 w-4 shrink-0" />
+                          <span>{item.label}</span>
+                        </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -178,15 +185,15 @@ export function AppSidebar() {
               <Avatar className="h-7 w-7 rounded-md">
                 <AvatarImage src="" alt="User avatar" />
                 <AvatarFallback className="bg-primary/10 text-primary font-bold font-mono text-xs rounded-md">
-                  AD
+                  {user?.displayName?.slice(0, 2).toUpperCase() ?? 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col gap-0.5 text-left leading-none overflow-hidden">
                 <span className="text-xs font-semibold text-foreground truncate">
-                  Admin User
+                  {user?.displayName ?? 'User'}
                 </span>
                 <span className="text-[10px] text-muted-foreground truncate font-mono">
-                  admin@xtechs.local
+                  {user?.email ?? ''}
                 </span>
               </div>
               <ChevronDown className="ml-auto h-3 w-3 text-muted-foreground" />
@@ -194,13 +201,10 @@ export function AppSidebar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" side="top">
             <DropdownMenuLabel className="flex flex-col gap-0.5 px-2 py-1.5">
-              <span className="text-xs font-semibold text-foreground">Admin User</span>
+              <span className="text-xs font-semibold text-foreground">{user?.displayName ?? 'User'}</span>
               <div className="flex items-center gap-1.5 mt-1">
                 <Badge variant="outline" className="text-[9px] px-1 py-0 font-mono font-bold uppercase tracking-wider text-primary border-primary/30 bg-primary/5">
-                  Superuser
-                </Badge>
-                <Badge variant="outline" className="text-[9px] px-1 py-0 font-mono font-bold uppercase tracking-wider text-status-posted border-status-posted/30 bg-status-posted/5">
-                  HQ
+                  Active
                 </Badge>
               </div>
             </DropdownMenuLabel>
@@ -213,12 +217,11 @@ export function AppSidebar() {
               <Shield className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Security Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer gap-2 text-xs py-1.5">
-              <Key className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>API Credentials</span>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer gap-2 text-xs py-1.5 text-destructive focus:bg-destructive/10 focus:text-destructive">
+            <DropdownMenuItem
+              className="cursor-pointer gap-2 text-xs py-1.5 text-destructive focus:bg-destructive/10 focus:text-destructive"
+              onClick={handleLogout}
+            >
               <LogOut className="h-3.5 w-3.5" />
               <span>Log Out</span>
             </DropdownMenuItem>
