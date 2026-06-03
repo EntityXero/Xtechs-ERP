@@ -23,6 +23,7 @@ import { resolveMetadata, type ScopeContext } from './metadata-service.js';
 import { logAudit } from './audit-service.js';
 import { z } from 'zod';
 import { WorkflowService } from './workflow-service.js';
+import { eventBus } from './automations/event-bus.js';
 
 /**
  * Transactional document types that strictly require sequential numbering.
@@ -314,7 +315,9 @@ export class DocumentService {
       ipAddress: auditCtx?.ipAddress,
     });
 
-    return this.getDocumentDetails(db, context, savedDoc.id);
+    const docDetails = await this.getDocumentDetails(db, context, savedDoc.id);
+    eventBus.emit('document_created', docDetails, context);
+    return docDetails;
   }
 
   /**
@@ -538,7 +541,9 @@ export class DocumentService {
       ipAddress: auditCtx?.ipAddress,
     });
 
-    return this.getDocumentDetails(db, context, documentId);
+    const docDetails = await this.getDocumentDetails(db, context, documentId);
+    eventBus.emit('document_updated', docDetails, context);
+    return docDetails;
   }
 
   /**

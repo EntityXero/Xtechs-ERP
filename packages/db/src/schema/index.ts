@@ -64,4 +64,14 @@ export {
   reportDefinitions,
   reportExecutions,
 } from './reports.js';
-
+export {
+  attachments,
+} from './attachments.js';
+export {
+  notifications,
+  notificationPreferences,
+} from './notifications.js';
+export {
+  automations,
+  automationLogs,
+} from './automations.js';

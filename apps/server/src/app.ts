@@ -22,9 +22,17 @@ import { salesRoutes } from './routes/sales.js';
 import { hrRoutes } from './routes/hr.js';
 import { purchasingRoutes } from './routes/purchasing.js';
 import { reportsRoutes } from './routes/reports.js';
+import { attachmentRoutes } from './routes/attachments.js';
+import { notificationRoutes } from './routes/notifications.js';
+import { automationRoutes } from './routes/automations.js';
+import multipart from '@fastify/multipart';
+import { AutomationService } from './lib/automation-service.js';
+import { pollScheduledAutomations } from './lib/automations/scheduler.js';
 
-// Initialize the background worker
+// Initialize the background workers
 import './workers/reporting-worker.js';
+import './workers/notification-worker.js';
+import './workers/automation-worker.js';
 
 
 // ─── Type Augmentation ───────────────────────────────────────
@@ -53,6 +61,18 @@ export async function buildApp(config: EnvConfig) {
   const { db } = createDb(config.DATABASE_URL);
   app.decorate('db', db);
 
+  // Initialize Automation event listeners
+  AutomationService.init(db);
+
+  // Start scheduled automations poller (runs every minute)
+  const pollerInterval = setInterval(async () => {
+    try {
+      await pollScheduledAutomations(db);
+    } catch (err: any) {
+      app.log.error(`[Scheduler Poller] Error: ${err.message}`);
+    }
+  }, 60000);
+
   // --- Core plugins ---
   await app.register(cors, {
     origin: config.NODE_ENV === 'development' ? true : false,
@@ -60,6 +80,8 @@ export async function buildApp(config: EnvConfig) {
   });
 
   await app.register(sensible);
+  await app.register(multipart);
+
 
   // --- ERP plugins (registration order matters) ---
   await app.register(authPlugin, { jwtSecret: config.JWT_SECRET });
@@ -81,6 +103,10 @@ export async function buildApp(config: EnvConfig) {
   await app.register(hrRoutes);
   await app.register(purchasingRoutes);
   await app.register(reportsRoutes);
+  await app.register(attachmentRoutes);
+  await app.register(notificationRoutes);
+  await app.register(automationRoutes);
+
 
 
 
@@ -117,6 +143,7 @@ export async function buildApp(config: EnvConfig) {
   for (const signal of signals) {
     process.on(signal, async () => {
       app.log.info(`Received ${signal}, shutting down gracefully...`);
+      clearInterval(pollerInterval);
       await app.close();
       process.exit(0);
     });

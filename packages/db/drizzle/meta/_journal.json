@@ -50,6 +50,20 @@
       "when": 1780129364828,
       "tag": "0006_marvelous_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780470925940,
+      "tag": "0007_reflective_penance",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780471483637,
+      "tag": "0008_new_overlord",
+      "breakpoints": true
     }
   ]
 }

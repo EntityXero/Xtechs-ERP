@@ -27,17 +27,19 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.0",
-    "postgres": "^3.4.0",
+    "@xtechs/shared": "workspace:*",
     "bcryptjs": "^3.0.0",
-    "@xtechs/shared": "workspace:*"
+    "drizzle-orm": "^0.44.0",
+    "postgres": "^3.4.0"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.0",
-    "typescript": "^5.8.0",
     "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
+    "@types/nodemailer": "^8.0.0",
+    "dotenv": "^16.5.0",
+    "drizzle-kit": "^0.31.0",
+    "nodemailer": "^8.0.10",
     "rimraf": "^6.0.0",
-    "dotenv": "^16.5.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
   }
 }

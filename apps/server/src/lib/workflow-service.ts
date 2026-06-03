@@ -12,6 +12,7 @@ import { resolveMetadata, type ScopeContext } from './metadata-service.js';
 import { logAudit } from './audit-service.js';
 import { ValidationError, NotFoundError, ForbiddenError } from './errors.js';
 import { DOCUMENT_LIFECYCLE, DOCUMENT_TRANSITIONS } from '@xtechs/shared';
+import { eventBus } from './automations/event-bus.js';
 
 /**
  * Resolves a dotted path in a nested object.
@@ -334,6 +335,7 @@ export class WorkflowService {
         ipAddress: auditCtx?.ipAddress,
       });
 
+      eventBus.emit('state_changed', savedDoc, context);
       return savedDoc;
     }
 
@@ -377,6 +379,7 @@ export class WorkflowService {
       ipAddress: auditCtx?.ipAddress,
     });
 
+    eventBus.emit('state_changed', savedDoc, context);
     return savedDoc;
   }
 

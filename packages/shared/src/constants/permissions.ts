@@ -64,6 +64,9 @@ export const RESOURCE_TYPES = {
   PURCHASE_ORDER: 'purchase_order',
   REPORT_DEFINITION: 'report_definition',
   REPORT_EXECUTION: 'report_execution',
+  ATTACHMENT: 'attachment',
+  NOTIFICATION: 'notification',
+  AUTOMATION: 'automation',
 } as const;
 
 export type ResourceType =

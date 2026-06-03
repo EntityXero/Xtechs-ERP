@@ -16,4 +16,6 @@ export * from './sales.js';
 export * from './hr.js';
 export * from './purchasing.js';
 export * from './reports.js';
-
+export * from './attachments.js';
+export * from './notifications.js';
+export * from './automations.js';
