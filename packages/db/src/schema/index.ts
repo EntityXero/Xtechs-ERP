@@ -75,3 +75,7 @@ export {
   automations,
   automationLogs,
 } from './automations.js';
+export {
+  searchIndexes,
+} from './search.js';
+

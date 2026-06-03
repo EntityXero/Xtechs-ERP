@@ -25,14 +25,19 @@ import { reportsRoutes } from './routes/reports.js';
 import { attachmentRoutes } from './routes/attachments.js';
 import { notificationRoutes } from './routes/notifications.js';
 import { automationRoutes } from './routes/automations.js';
+import { searchRoutes } from './routes/search.js';
 import multipart from '@fastify/multipart';
 import { AutomationService } from './lib/automation-service.js';
+import { SearchIndexerService } from './lib/search/indexer.js';
 import { pollScheduledAutomations } from './lib/automations/scheduler.js';
+
 
 // Initialize the background workers
 import './workers/reporting-worker.js';
 import './workers/notification-worker.js';
 import './workers/automation-worker.js';
+import './workers/search-worker.js';
+
 
 
 // ─── Type Augmentation ───────────────────────────────────────
@@ -63,6 +68,8 @@ export async function buildApp(config: EnvConfig) {
 
   // Initialize Automation event listeners
   AutomationService.init(db);
+  SearchIndexerService.init();
+
 
   // Start scheduled automations poller (runs every minute)
   const pollerInterval = setInterval(async () => {
@@ -106,6 +113,8 @@ export async function buildApp(config: EnvConfig) {
   await app.register(attachmentRoutes);
   await app.register(notificationRoutes);
   await app.register(automationRoutes);
+  await app.register(searchRoutes);
+
 
 
 

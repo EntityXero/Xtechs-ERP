@@ -19,3 +19,5 @@ export * from './reports.js';
 export * from './attachments.js';
 export * from './notifications.js';
 export * from './automations.js';
+export * from './search.js';
+
