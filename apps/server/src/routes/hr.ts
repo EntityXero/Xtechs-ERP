@@ -1,5 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { eq, and, sql, desc } from 'drizzle-orm';
+import { departments, designations, employees } from '@xtechs/db/schema';
 import { requirePermission } from '../hooks/require-permission.js';
 import { createScopedDb } from '../lib/scoped-db.js';
 import { ValidationError } from '../lib/errors.js';
@@ -34,7 +36,57 @@ export async function hrRoutes(fastify: FastifyInstance) {
   const { db } = fastify;
 
   // ==========================================
-  // DEPARTMENTS
+  // LIST ENDPOINTS (GET)
+  // ==========================================
+
+  fastify.get(
+    '/api/v1/hr/departments',
+    { preHandler: [requirePermission('department', 'read')] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const scoped = createScopedDb(request.authContext!);
+      const { tenantId, businessId, branchId } = scoped.auth.scope;
+      const query = request.query as { page?: string; pageSize?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1'));
+      const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize ?? '50')));
+
+      const where = and(
+        eq(departments.tenantId, tenantId),
+        eq(departments.businessId, businessId),
+        eq(departments.branchId, branchId),
+      );
+
+      const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(departments).where(where);
+      const data = await db.select().from(departments).where(where).orderBy(desc(departments.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
+
+      return reply.send({ data, total: countResult?.count ?? 0, page, pageSize });
+    }
+  );
+
+  fastify.get(
+    '/api/v1/hr/employees',
+    { preHandler: [requirePermission('employee', 'read')] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const scoped = createScopedDb(request.authContext!);
+      const { tenantId, businessId, branchId } = scoped.auth.scope;
+      const query = request.query as { page?: string; pageSize?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1'));
+      const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize ?? '20')));
+
+      const where = and(
+        eq(employees.tenantId, tenantId),
+        eq(employees.businessId, businessId),
+        eq(employees.branchId, branchId),
+      );
+
+      const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(employees).where(where);
+      const data = await db.select().from(employees).where(where).orderBy(desc(employees.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
+
+      return reply.send({ data, total: countResult?.count ?? 0, page, pageSize });
+    }
+  );
+
+  // ==========================================
+  // DEPARTMENTS (CREATE)
   // ==========================================
 
   fastify.post(

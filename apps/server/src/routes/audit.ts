@@ -60,7 +60,44 @@ export async function auditRoutes(fastify: FastifyInstance) {
 
       const result = await queryAuditLogs(db, scopeCondition, query.data);
 
-      return reply.send(result);
+      return reply.send({
+        logs: result.logs.map((log) => ({
+          ...log,
+          createdAt: log.timestamp,
+        })),
+        total: result.total,
+      });
+    }
+  );
+
+  // ─── GET /api/v1/audit/logs ─────────────────────────────────
+  fastify.get(
+    '/api/v1/audit/logs',
+    { preHandler: [requirePermission('audit', 'read')] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = request.query as { page?: string; pageSize?: string; entityType?: string; action?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1'));
+      const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize ?? '30')));
+
+      const scoped = createScopedDb(request.authContext!);
+      const scopeCondition = scoped.filters(auditLogs);
+
+      const result = await queryAuditLogs(db, scopeCondition, {
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        entityType: query.entityType,
+        action: query.action,
+      });
+
+      return reply.send({
+        data: result.logs.map((log) => ({
+          ...log,
+          createdAt: log.timestamp,
+        })),
+        total: result.total,
+        page,
+        pageSize,
+      });
     }
   );
 
@@ -81,7 +118,12 @@ export async function auditRoutes(fastify: FastifyInstance) {
 
       const timeline = await getEntityTimeline(db, scopeCondition, entityType, entityId);
 
-      return reply.send(timeline);
+      return reply.send(
+        timeline.map((log) => ({
+          ...log,
+          createdAt: log.timestamp,
+        }))
+      );
     }
   );
 

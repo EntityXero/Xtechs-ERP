@@ -493,3 +493,209 @@ export function useChangePassword() {
     mutationFn: (payload: any) => api.post<any>('/api/v1/auth/change-password', payload),
   });
 }
+
+// ─── CRM ──────────────────────────────────────────────────────
+
+export interface CustomerRecord {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface LeadRecord {
+  id: string;
+  firstName: string;
+  lastName: string;
+  company: string | null;
+  email: string;
+  phone: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface OpportunityRecord {
+  id: string;
+  leadId: string | null;
+  customerId: string | null;
+  title: string;
+  expectedValue: string;
+  stage: string;
+  expectedCloseDate: string | null;
+  createdAt: string;
+}
+
+export function useCrmCustomers(page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ['crm-customers', page, pageSize],
+    queryFn: () =>
+      api.get<PaginatedResponse<CustomerRecord>>(
+        `/api/v1/crm/customers?page=${page}&pageSize=${pageSize}`,
+      ),
+    staleTime: 30_000,
+  });
+}
+
+export function useCrmLeads(page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ['crm-leads', page, pageSize],
+    queryFn: () =>
+      api.get<PaginatedResponse<LeadRecord>>(
+        `/api/v1/crm/leads?page=${page}&pageSize=${pageSize}`,
+      ),
+    staleTime: 30_000,
+  });
+}
+
+export function useCrmOpportunities(page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ['crm-opportunities', page, pageSize],
+    queryFn: () =>
+      api.get<PaginatedResponse<OpportunityRecord>>(
+        `/api/v1/crm/opportunities?page=${page}&pageSize=${pageSize}`,
+      ),
+    staleTime: 30_000,
+  });
+}
+
+// ─── HR ───────────────────────────────────────────────────────
+
+export interface EmployeeRecord {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  departmentId: string | null;
+  designationId: string | null;
+  dateOfJoining: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface DepartmentRecord {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export function useHrEmployees(page = 1, pageSize = 20) {
+  return useQuery({
+    queryKey: ['hr-employees', page, pageSize],
+    queryFn: () =>
+      api.get<PaginatedResponse<EmployeeRecord>>(
+        `/api/v1/hr/employees?page=${page}&pageSize=${pageSize}`,
+      ),
+    staleTime: 30_000,
+  });
+}
+
+export function useHrDepartments(page = 1, pageSize = 50) {
+  return useQuery({
+    queryKey: ['hr-departments', page, pageSize],
+    queryFn: () =>
+      api.get<PaginatedResponse<DepartmentRecord>>(
+        `/api/v1/hr/departments?page=${page}&pageSize=${pageSize}`,
+      ),
+    staleTime: 60_000,
+  });
+}
+
+// ─── Metadata ─────────────────────────────────────────────────
+
+export interface MetadataDefinitionRecord {
+  id: string;
+  key: string;
+  type: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface MetadataRevisionRecord {
+  id: string;
+  defId: string;
+  tenantId: string | null;
+  businessId: string | null;
+  branchId: string | null;
+  version: number;
+  payload: Record<string, any>;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export function useMetadataDefinitions() {
+  return useQuery({
+    queryKey: ['metadata-definitions'],
+    queryFn: () => api.get<MetadataDefinitionRecord[]>('/api/v1/metadata/defs'),
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateMetadataDefinition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) => api.post<any>('/api/v1/metadata/defs', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metadata-definitions'] });
+    },
+  });
+}
+
+export function useMetadataRevisions(key: string) {
+  return useQuery({
+    queryKey: ['metadata-revisions', key],
+    queryFn: () => api.get<MetadataRevisionRecord[]>(`/api/v1/metadata/defs/${key}/revisions`),
+    enabled: !!key,
+  });
+}
+
+export function useCreateMetadataRevision(key: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      tenantId: string | null;
+      businessId: string | null;
+      branchId: string | null;
+      payload: Record<string, any>;
+    }) => api.post<MetadataRevisionRecord>(`/api/v1/metadata/defs/${key}/revisions`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metadata-revisions', key] });
+    },
+  });
+}
+
+// ─── Dashboard Summary ───────────────────────────────────────
+
+export function useDashboardDocuments(page = 1, pageSize = 10) {
+  return useQuery({
+    queryKey: ['dashboard-documents', page, pageSize],
+    queryFn: () =>
+      api.get<PaginatedResponse<DocumentRecord>>(
+        `/api/v1/documents/invoice?page=${page}&pageSize=${pageSize}`,
+      ),
+    staleTime: 30_000,
+  });
+}
+
+export function useDashboardAuditLogs() {
+  return useQuery({
+    queryKey: ['dashboard-audit-logs'],
+    queryFn: () =>
+      api.get<PaginatedResponse<AuditLogRecord>>(
+        '/api/v1/audit/logs?page=1&pageSize=5',
+      ),
+    staleTime: 15_000,
+  });
+}
+
+export function useMetadata(key: string) {
+  return useQuery({
+    queryKey: ['metadata', key],
+    queryFn: () => api.get<any>(`/api/v1/metadata/defs/${key}`),
+    enabled: !!key,
+    staleTime: 60_000,
+  });
+}

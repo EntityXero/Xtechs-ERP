@@ -45,7 +45,8 @@ export type AuditAction =
   | 'assign'
   | 'revoke'
   | 'change_password'
-  | 'update_status';
+  | 'update_status'
+  | 'switch_branch';
 
 export interface AuditEntry {
   entityType: string;

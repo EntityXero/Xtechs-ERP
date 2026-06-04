@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, Building2, Users, ShieldAlert, KeyRound } from 'lucide-react';
+import { Shield, Building2, Users, ShieldAlert, KeyRound, Database } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -87,6 +87,11 @@ export default function SettingsLayout({
       label: 'Roles & Permissions',
       href: '/settings/roles',
       icon: Shield,
+    },
+    {
+      label: 'Metadata Definitions',
+      href: '/settings/metadata',
+      icon: Database,
     },
   ];
 

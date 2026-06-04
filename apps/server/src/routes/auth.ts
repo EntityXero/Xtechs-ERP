@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, isNull, gt } from 'drizzle-orm';
 import { createDb } from '@xtechs/db';
-import { users, branches, userRoles, roles, refreshTokens } from '@xtechs/db/schema';
+import { users, branches, userRoles, roles, refreshTokens, businesses } from '@xtechs/db/schema';
 import {
   loginWithBranchSchema,
   registerUserSchema,
@@ -160,11 +160,13 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
         branchId: userRoles.branchId,
         branchName: branches.name,
         businessId: branches.businessId,
+        businessName: businesses.name,
         tenantId: branches.tenantId,
         roleName: roles.name,
       })
       .from(userRoles)
       .innerJoin(branches, eq(userRoles.branchId, branches.id))
+      .innerJoin(businesses, eq(branches.businessId, businesses.id))
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
       .where(eq(userRoles.userId, user.id));
 
@@ -281,6 +283,15 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
     const { resolvePermissions } = await import('../lib/permission-service.js');
     const permissions = await resolvePermissions(db, user.id, selectedBranchId);
 
+    const accessibleBranches = [...new Map(
+      userBranches.map((b) => [b.branchId, {
+        id: b.branchId,
+        name: b.branchName,
+        businessId: b.businessId,
+        businessName: b.businessName,
+      }]),
+    ).values()];
+
     return reply.send({
       user: toUserResponse({ ...user, lastLoginAt: new Date() }),
       scope: {
@@ -291,6 +302,7 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
       tokenScope,
       roles: roleNames,
       permissions,
+      accessibleBranches,
     });
   });
 
@@ -469,12 +481,194 @@ export async function authRoutes(fastify: FastifyInstance, opts: AuthRouteOption
     const { resolvePermissions } = await import('../lib/permission-service.js');
     const permissions = await resolvePermissions(db, auth.userId, auth.scope.branchId);
 
+    const userBranches = await db
+      .select({
+        branchId: userRoles.branchId,
+        branchName: branches.name,
+        businessId: branches.businessId,
+        businessName: businesses.name,
+        tenantId: branches.tenantId,
+        roleName: roles.name,
+      })
+      .from(userRoles)
+      .innerJoin(branches, eq(userRoles.branchId, branches.id))
+      .innerJoin(businesses, eq(branches.businessId, businesses.id))
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(userRoles.userId, auth.userId));
+
+    const accessibleBranches = [...new Map(
+      userBranches.map((b) => [b.branchId, {
+        id: b.branchId,
+        name: b.branchName,
+        businessId: b.businessId,
+        businessName: b.businessName,
+      }]),
+    ).values()];
+
     return reply.send({
       user: toUserResponse(user),
       scope: auth.scope,
       tokenScope: auth.tokenScope,
       roles: auth.roles,
       permissions,
+      accessibleBranches,
+    });
+  });
+
+  // ─── PATCH /api/v1/auth/switch-branch ─────────────────────
+  fastify.patch('/api/v1/auth/switch-branch', async (request: FastifyRequest, reply: FastifyReply) => {
+    const auth = request.authContext;
+    if (!auth) {
+      throw new UnauthorizedError();
+    }
+
+    const body = (request.body as { branchId?: string } | null);
+    if (!body?.branchId) {
+      throw new ValidationError('branchId is required', { branchId: ['Required'] });
+    }
+
+    const targetBranchId = body.branchId;
+
+    // Verify user has role assignment for the target branch
+    const branchRoleRows = await db
+      .select({
+        branchId: userRoles.branchId,
+        branchName: branches.name,
+        businessId: branches.businessId,
+        tenantId: branches.tenantId,
+        roleName: roles.name,
+      })
+      .from(userRoles)
+      .innerJoin(branches, eq(userRoles.branchId, branches.id))
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(
+        and(
+          eq(userRoles.userId, auth.userId),
+          eq(userRoles.branchId, targetBranchId),
+        ),
+      );
+
+    if (branchRoleRows.length === 0) {
+      throw new UnauthorizedError('You do not have access to the specified branch');
+    }
+
+    const selectedBranch = branchRoleRows[0]!;
+    const roleNames = branchRoleRows.map((r) => r.roleName);
+    const tokenScope: TokenScope = roleNames.includes('Admin') ? 'all-branches' : 'branch';
+
+    // Look up user for fresh data
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, auth.userId))
+      .limit(1);
+
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedError('User account is no longer active');
+    }
+
+    // Sign new access token scoped to the new branch
+    const newAccessToken = await signAccessToken(
+      {
+        sub: user.id,
+        email: user.email,
+        tenantId: selectedBranch.tenantId,
+        businessId: selectedBranch.businessId,
+        branchId: targetBranchId,
+        tokenScope,
+        roles: roleNames,
+        forcePasswordChange: user.forcePasswordChange,
+      },
+      config.JWT_SECRET,
+      config.JWT_EXPIRES_IN,
+    );
+
+    // Generate new refresh token
+    const newRefreshToken = generateRefreshToken();
+    const refreshExpiresMs = parseDuration(config.JWT_REFRESH_EXPIRES_IN);
+    const refreshExpiresDate = new Date(Date.now() + refreshExpiresMs);
+
+    await db.insert(refreshTokens).values({
+      userId: user.id,
+      token: newRefreshToken,
+      expiresAt: refreshExpiresDate,
+      tenantId: selectedBranch.tenantId,
+      businessId: selectedBranch.businessId,
+      branchId: targetBranchId,
+    });
+
+    const isProd = config.NODE_ENV === 'production';
+
+    reply
+      .setCookie('access_token', newAccessToken, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: isProd,
+        path: '/',
+        maxAge: 60 * 15,
+      })
+      .setCookie('refresh_token', newRefreshToken, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: isProd,
+        path: '/api/v1/auth/refresh',
+        expires: refreshExpiresDate,
+      });
+
+    // Audit: branch switched
+    await logAudit(db, {
+      entityType: 'user',
+      entityId: user.id,
+      action: 'switch_branch',
+      actorId: user.id,
+      oldValues: { branchId: auth.scope.branchId },
+      newValues: { branchId: targetBranchId },
+      requestId: request.id,
+      tenantId: selectedBranch.tenantId,
+      businessId: selectedBranch.businessId,
+      branchId: targetBranchId,
+      ipAddress: request.clientIp,
+    });
+
+    // Resolve permissions for the new branch
+    const { resolvePermissions } = await import('../lib/permission-service.js');
+    const permissions = await resolvePermissions(db, user.id, targetBranchId);
+
+    const userBranches = await db
+      .select({
+        branchId: userRoles.branchId,
+        branchName: branches.name,
+        businessId: branches.businessId,
+        businessName: businesses.name,
+        tenantId: branches.tenantId,
+        roleName: roles.name,
+      })
+      .from(userRoles)
+      .innerJoin(branches, eq(userRoles.branchId, branches.id))
+      .innerJoin(businesses, eq(branches.businessId, businesses.id))
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(userRoles.userId, user.id));
+
+    const accessibleBranches = [...new Map(
+      userBranches.map((b) => [b.branchId, {
+        id: b.branchId,
+        name: b.branchName,
+        businessId: b.businessId,
+        businessName: b.businessName,
+      }]),
+    ).values()];
+
+    return reply.send({
+      user: toUserResponse(user),
+      scope: {
+        tenantId: selectedBranch.tenantId,
+        businessId: selectedBranch.businessId,
+        branchId: targetBranchId,
+      },
+      tokenScope,
+      roles: roleNames,
+      permissions,
+      accessibleBranches,
     });
   });
 

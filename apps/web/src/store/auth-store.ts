@@ -30,12 +30,20 @@ export interface ResolvedPermission {
   effect: 'allow' | 'deny';
 }
 
+interface AccessibleBranch {
+  id: string;
+  name: string;
+  businessId: string;
+  businessName: string;
+}
+
 interface LoginResponse {
   user: AuthUser;
   scope: AuthScope;
   tokenScope: string;
   roles: string[];
   permissions: ResolvedPermission[];
+  accessibleBranches: AccessibleBranch[];
 }
 
 interface MeResponse {
@@ -44,6 +52,7 @@ interface MeResponse {
   tokenScope: string;
   roles: string[];
   permissions: ResolvedPermission[];
+  accessibleBranches: AccessibleBranch[];
 }
 
 interface BranchOption {
@@ -65,6 +74,7 @@ interface AuthState {
   roles: string[];
   tokenScope: string | null;
   permissions: ResolvedPermission[];
+  accessibleBranches: AccessibleBranch[];
 
   // UI state
   isAuthenticated: boolean;
@@ -79,6 +89,7 @@ interface AuthState {
   ) => Promise<{ needsBranchSelection: false } | { needsBranchSelection: true; branches: BranchOption[] }>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
+  switchBranch: (branchId: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -92,6 +103,7 @@ export const useAuthStore = create<AuthState>()(
       roles: [],
       tokenScope: null,
       permissions: [],
+      accessibleBranches: [],
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -120,6 +132,7 @@ export const useAuthStore = create<AuthState>()(
             roles: res.roles,
             tokenScope: res.tokenScope,
             permissions: res.permissions || [],
+            accessibleBranches: res.accessibleBranches || [],
             isAuthenticated: true,
             isLoading: false,
             error: null,
@@ -146,6 +159,7 @@ export const useAuthStore = create<AuthState>()(
             roles: [],
             tokenScope: null,
             permissions: [],
+            accessibleBranches: [],
             isAuthenticated: false,
             isLoading: false,
             error: null,
@@ -163,6 +177,7 @@ export const useAuthStore = create<AuthState>()(
             roles: data.roles,
             tokenScope: data.tokenScope,
             permissions: data.permissions || [],
+            accessibleBranches: data.accessibleBranches || [],
             isAuthenticated: true,
             isLoading: false,
           });
@@ -174,9 +189,31 @@ export const useAuthStore = create<AuthState>()(
             roles: [],
             tokenScope: null,
             permissions: [],
+            accessibleBranches: [],
             isAuthenticated: false,
             isLoading: false,
           });
+        }
+      },
+
+      switchBranch: async (branchId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const data = await api.patch<MeResponse>('/api/v1/auth/switch-branch', { branchId });
+          set({
+            user: data.user,
+            scope: data.scope,
+            roles: data.roles,
+            tokenScope: data.tokenScope,
+            permissions: data.permissions || [],
+            accessibleBranches: data.accessibleBranches || [],
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } catch (err) {
+          const message = err instanceof ApiError ? err.message : 'Failed to switch branch';
+          set({ isLoading: false, error: message });
+          throw err;
         }
       },
 
@@ -191,6 +228,7 @@ export const useAuthStore = create<AuthState>()(
         roles: state.roles,
         tokenScope: state.tokenScope,
         permissions: state.permissions,
+        accessibleBranches: state.accessibleBranches,
         isAuthenticated: state.isAuthenticated,
       }),
     },

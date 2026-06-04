@@ -18,7 +18,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useCreateDocument, useInventoryItems, useAccounts } from '@/hooks/use-api';
+import {
+  useCreateDocument,
+  useInventoryItems,
+  useAccounts,
+  useMetadata,
+} from '@/hooks/use-api';
+import { DynamicForm } from '@/components/shared/dynamic-form';
 
 interface PageProps {
   params: Promise<{
@@ -36,6 +42,31 @@ interface FormLine {
   unitPrice: number;
 }
 
+const defaultFallbackSchema = {
+  fields: [
+    {
+      name: 'partnerName',
+      label: 'Partner / Customer Name',
+      type: 'text',
+      required: true,
+      placeholder: 'e.g. Acme Corporation',
+    },
+    {
+      name: 'postingDate',
+      label: 'Posting Date',
+      type: 'date',
+      required: true,
+    },
+    {
+      name: 'notes',
+      label: 'Notes & Descriptions',
+      type: 'textarea',
+      placeholder: 'Internal memo or additional terms...',
+      gridSpan: 2,
+    },
+  ],
+};
+
 export default function NewDocumentPage({ params }: PageProps) {
   const router = useRouter();
   const resolvedParams = React.use(params);
@@ -50,10 +81,20 @@ export default function NewDocumentPage({ params }: PageProps) {
   const items = itemsQuery.data?.data ?? [];
   const accounts = accountsQuery.data?.data ?? [];
 
+  // Load metadata form schema
+  const metadataQuery = useMetadata(`${type}_form`);
+  const schema = metadataQuery.data?.revision?.payload || defaultFallbackSchema;
+
   // Form State
-  const [partnerName, setPartnerName] = React.useState('');
-  const [notes, setNotes] = React.useState('');
-  const [postingDate, setPostingDate] = React.useState(new Date().toISOString().split('T')[0]!);
+  const [formData, setFormData] = React.useState<Record<string, any>>({
+    partnerName: '',
+    postingDate: new Date().toISOString().split('T')[0]!,
+    notes: '',
+  });
+
+  const handleFieldChange = (name: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const [lines, setLines] = React.useState<FormLine[]>([
     {
@@ -127,9 +168,12 @@ export default function NewDocumentPage({ params }: PageProps) {
   const handleSubmit = async (workflowState: 'draft' | 'pending_approval') => {
     setErrorMessage(null);
 
-    if (!partnerName.trim()) {
-      setErrorMessage('Partner name is required.');
-      return;
+    // Validate required fields based on metadata schema
+    for (const field of schema.fields) {
+      if (field.required && !String(formData[field.name] ?? '').trim()) {
+        setErrorMessage(`${field.label} is required.`);
+        return;
+      }
     }
 
     // Validate lines
@@ -144,9 +188,7 @@ export default function NewDocumentPage({ params }: PageProps) {
       status: 'active',
       workflowState,
       data: {
-        partnerName: partnerName.trim(),
-        notes: notes.trim(),
-        postingDate,
+        ...formData,
         taxRate: 0.15,
       },
       lines: lines.map((line, index) => ({
@@ -222,51 +264,18 @@ export default function NewDocumentPage({ params }: PageProps) {
             <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono border-b border-border/40 pb-2 select-none">
               Document Header Information
             </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                  Partner / Customer Name
-                </label>
-                <div className="relative">
-                  <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    required
-                    value={partnerName}
-                    onChange={(e) => setPartnerName(e.target.value)}
-                    placeholder="e.g. Acme Corporation"
-                    className="pl-8 h-9 text-xs border-border bg-background"
-                  />
-                </div>
+            {metadataQuery.isLoading ? (
+              <div className="flex items-center gap-2 py-4 justify-center">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground font-mono">Loading form schema...</span>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                  Posting Date
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    type="date"
-                    required
-                    value={postingDate}
-                    onChange={(e) => setPostingDate(e.target.value)}
-                    className="pl-8 h-9 text-xs border-border bg-background font-mono"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                Notes & Descriptions
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Internal memo or additional terms..."
-                className="w-full rounded-md border border-border bg-background p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-h-[60px]"
+            ) : (
+              <DynamicForm
+                schema={schema}
+                values={formData}
+                onChange={handleFieldChange}
               />
-            </div>
+            )}
           </div>
 
           {/* Line items dynamic grid */}

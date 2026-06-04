@@ -17,6 +17,8 @@ import {
   LogOut,
   User,
   Shield,
+  ShoppingBag,
+  ShoppingCart,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
 import { cn } from '@/lib/utils';
@@ -59,6 +61,8 @@ const menuGroups = [
       { id: 'accounting', label: 'Accounting', icon: Receipt, path: '/accounting' },
       { id: 'inventory', label: 'Inventory', icon: Boxes, path: '/inventory' },
       { id: 'crm', label: 'CRM', icon: Users, path: '/crm' },
+      { id: 'sales', label: 'Sales', icon: ShoppingBag, path: '/sales' },
+      { id: 'purchasing', label: 'Purchasing', icon: ShoppingCart, path: '/purchasing' },
       { id: 'hr', label: 'HR Management', icon: Contact, path: '/hr' },
     ],
   },
@@ -71,17 +75,13 @@ const menuGroups = [
   },
 ];
 
-// Mock Business/Branches list
-const businesses = [
-  { id: 'b1', name: 'Xtechs Corporate', branch: 'Main HQ' },
-  { id: 'b2', name: 'Xtechs Logistics', branch: 'Warehouse A' },
-  { id: 'b3', name: 'Xtechs Retail', branch: 'London Branch' },
-];
-
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
-  const [selectedBiz, setSelectedBiz] = React.useState<{ id: string; name: string; branch: string }>(businesses[0]!);
+  const { user, logout, scope, accessibleBranches, switchBranch } = useAuthStore();
+
+  const currentBranch = accessibleBranches.find((b) => b.id === scope?.branchId);
+  const activeBranchName = currentBranch?.name ?? 'Head Office';
+  const activeBusinessName = currentBranch?.businessName ?? 'Xtechs Pvt Ltd';
 
   const handleLogout = async () => {
     await logout();
@@ -102,10 +102,10 @@ export function AppSidebar() {
               </div>
               <div className="flex flex-col gap-0.5 text-left leading-tight overflow-hidden">
                 <span className="font-mono text-xs font-semibold tracking-tight text-foreground truncate">
-                  {selectedBiz.name}
+                  {activeBusinessName}
                 </span>
                 <span className="text-[10px] text-muted-foreground truncate font-mono">
-                  {selectedBiz.branch}
+                  {activeBranchName}
                 </span>
               </div>
               <ChevronDown className="ml-auto h-3 w-3 text-muted-foreground" />
@@ -116,17 +116,26 @@ export function AppSidebar() {
               Switch Business Unit
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {businesses.map((biz) => (
+            {accessibleBranches.map((branch) => (
               <DropdownMenuItem
-                key={biz.id}
-                onClick={() => setSelectedBiz(biz)}
-                className="flex flex-col items-start gap-0.5 px-2 py-1.5 cursor-pointer"
+                key={branch.id}
+                onClick={async () => {
+                  try {
+                    await switchBranch(branch.id);
+                  } catch (err) {
+                    console.error('Failed to switch branch:', err);
+                  }
+                }}
+                className={cn(
+                  "flex flex-col items-start gap-0.5 px-2 py-1.5 cursor-pointer",
+                  branch.id === scope?.branchId && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                )}
               >
                 <span className="font-mono text-xs font-medium text-foreground">
-                  {biz.name}
+                  {branch.businessName}
                 </span>
                 <span className="text-[10px] text-muted-foreground font-mono">
-                  {biz.branch}
+                  {branch.name}
                 </span>
               </DropdownMenuItem>
             ))}

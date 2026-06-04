@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
   TrendingUp,
@@ -14,6 +15,9 @@ import {
   Eye,
   MoreHorizontal,
   FileCheck2,
+  RefreshCw,
+  Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
@@ -25,78 +29,79 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  useDashboardDocuments,
+  useDashboardAuditLogs,
+  useInventoryItems,
+  useCrmCustomers,
+  type DocumentRecord,
+} from '@/hooks/use-api';
 
-// Mock Document Interface
-interface DocumentRecord {
-  id: string;
-  docNumber: string;
-  type: string;
-  partner: string;
-  amount: number;
-  status: string;
-  date: string;
+// ─── Status badge helper ──────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+  const s = status.toLowerCase();
+  let cls = 'bg-status-draft text-status-draft-foreground border-status-draft/30';
+  if (s === 'pending_approval') cls = 'bg-status-pending text-status-pending-foreground border-status-pending/30';
+  else if (s === 'approved') cls = 'bg-status-approved text-status-approved-foreground border-status-approved/30';
+  else if (s === 'posted') cls = 'bg-status-posted text-status-posted-foreground border-status-posted/30';
+  else if (s === 'rejected') cls = 'bg-status-rejected text-status-rejected-foreground border-status-rejected/30';
+  else if (s === 'archived') cls = 'bg-muted text-muted-foreground border-border';
+  return (
+    <Badge variant="outline" className={`text-[9px] uppercase tracking-wider font-mono font-bold py-0 px-1.5 ${cls}`}>
+      {status.replace(/_/g, ' ')}
+    </Badge>
+  );
 }
 
+// ─── Columns ─────────────────────────────────────────────────
 const columns: ColumnDef<DocumentRecord>[] = [
   {
     accessorKey: 'docNumber',
     header: 'Document No.',
     cell: ({ row }) => (
       <span className="font-mono font-semibold tracking-tight text-foreground">
-        {row.getValue('docNumber')}
+        {row.getValue('docNumber') ?? <span className="text-muted-foreground italic">—</span>}
       </span>
     ),
   },
   {
-    accessorKey: 'type',
+    accessorKey: 'documentType',
     header: 'Type',
     cell: ({ row }) => (
-      <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 font-medium">
-        {row.getValue('type')}
+      <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 font-medium capitalize">
+        {String(row.getValue('documentType')).replace(/_/g, ' ')}
       </Badge>
     ),
   },
   {
-    accessorKey: 'partner',
-    header: 'Partner / Entity',
-    cell: ({ row }) => <span className="font-medium">{row.getValue('partner')}</span>,
-  },
-  {
-    accessorKey: 'amount',
-    header: 'Amount',
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('amount'));
-      const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-      return <span className="font-mono font-medium text-right block">{formatted}</span>;
-    },
-  },
-  {
     accessorKey: 'status',
     header: 'Status',
-    cell: ({ row }) => {
-      const status = row.getValue('status') as string;
-      const s = status.toLowerCase();
-      let badgeClass = 'bg-status-draft text-status-draft-foreground border-status-draft/30';
-      if (s === 'pending_approval') badgeClass = 'bg-status-pending text-status-pending-foreground border-status-pending/30';
-      else if (s === 'approved') badgeClass = 'bg-status-approved text-status-approved-foreground border-status-approved/30';
-      else if (s === 'posted') badgeClass = 'bg-status-posted text-status-posted-foreground border-status-posted/30';
-      else if (s === 'rejected') badgeClass = 'bg-status-rejected text-status-rejected-foreground border-status-rejected/30';
-      return (
-        <Badge variant="outline" className={`text-[9px] uppercase tracking-wider font-mono font-bold py-0 px-1.5 ${badgeClass}`}>
-          {status.replace('_', ' ')}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => <StatusBadge status={row.getValue('status')} />,
   },
   {
-    accessorKey: 'date',
-    header: 'Posting Date',
-    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.getValue('date')}</span>,
+    accessorKey: 'workflowState',
+    header: 'Workflow State',
+    cell: ({ row }) => (
+      <span className="font-mono text-[11px] text-muted-foreground capitalize">
+        {String(row.getValue('workflowState')).replace(/_/g, ' ')}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Created',
+    cell: ({ row }) => (
+      <span className="font-mono text-xs text-muted-foreground">
+        {new Date(row.getValue('createdAt')).toLocaleDateString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric',
+        })}
+      </span>
+    ),
   },
   {
     id: 'actions',
-    header: 'Actions',
-    cell: () => (
+    header: '',
+    cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted p-0">
@@ -105,13 +110,11 @@ const columns: ColumnDef<DocumentRecord>[] = [
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel className="text-[10px] font-bold text-muted-foreground uppercase py-1">Actions</DropdownMenuLabel>
-          <DropdownMenuItem className="cursor-pointer text-xs py-1.5 flex gap-1.5">
-            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>View Record</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer text-xs py-1.5 flex gap-1.5">
-            <FileCheck2 className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Post Entry</span>
+          <DropdownMenuItem asChild className="cursor-pointer text-xs py-1.5 flex gap-1.5">
+            <Link href={`/documents/${row.original.documentType}/${row.original.id}`}>
+              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>View Document</span>
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -119,16 +122,47 @@ const columns: ColumnDef<DocumentRecord>[] = [
   },
 ];
 
-const mockDocuments: DocumentRecord[] = [
-  { id: '1', docNumber: 'INV-2026-0001', type: 'Invoice', partner: 'Acme General Services', amount: 15450.00, status: 'POSTED', date: '2026-06-01' },
-  { id: '2', docNumber: 'PO-2026-0042', type: 'Purchase Order', partner: 'Apex Global Suppliers', amount: 8900.00, status: 'PENDING_APPROVAL', date: '2026-06-02' },
-  { id: '3', docNumber: 'INV-2026-0002', type: 'Invoice', partner: 'Delta Consulting Inc', amount: 3200.00, status: 'DRAFT', date: '2026-06-03' },
-  { id: '4', docNumber: 'JE-2026-0104', type: 'Journal Entry', partner: 'Opening Balance Adjustment', amount: 120000.00, status: 'POSTED', date: '2026-05-31' },
-  { id: '5', docNumber: 'PO-2026-0043', type: 'Purchase Order', partner: 'Prime Hardware Corp', amount: 450.00, status: 'APPROVED', date: '2026-06-03' },
-  { id: '6', docNumber: 'INV-2026-0003', type: 'Invoice', partner: 'Acme General Services', amount: 7800.00, status: 'REJECTED', date: '2026-06-02' },
-];
+// Helper for audit logs timeline style
+function getAuditIconInfo(action: string) {
+  const act = action.toLowerCase();
+  if (['create', 'register', 'login'].includes(act)) {
+    return { icon: FileCheck2, color: 'text-status-posted', bg: 'bg-status-posted/10' };
+  }
+  if (['delete', 'reject', 'revoke', 'suspend'].includes(act)) {
+    return { icon: AlertCircle, color: 'text-status-rejected', bg: 'bg-status-rejected/10' };
+  }
+  return { icon: Clock, color: 'text-primary', bg: 'bg-primary/10' };
+}
 
 export default function DashboardPage() {
+  const documentsQuery = useDashboardDocuments(1, 10);
+  const auditLogsQuery = useDashboardAuditLogs();
+  const inventoryQuery = useInventoryItems(1, 100);
+  const crmQuery = useCrmCustomers(1, 100);
+
+  const refetchAll = () => {
+    documentsQuery.refetch();
+    auditLogsQuery.refetch();
+    inventoryQuery.refetch();
+    crmQuery.refetch();
+  };
+
+  // Calculations
+  const documentsList = documentsQuery.data?.data ?? [];
+  const postedInvoicesCount = documentsList.filter((doc) => doc.status === 'POSTED').length;
+  const totalInvoicesCount = documentsQuery.data?.total ?? 0;
+
+  const totalInventoryItems = inventoryQuery.data?.total ?? 0;
+  const lowStockItemsCount = (inventoryQuery.data?.data ?? []).filter(
+    (item) => parseFloat(item.currentStock) <= parseFloat(item.reorderLevel || '0')
+  ).length;
+
+  const activePartnersCount = crmQuery.data?.total ?? 0;
+  const recentAuditLogs = auditLogsQuery.data?.data?.slice(0, 5) ?? [];
+  const totalAuditEvents = auditLogsQuery.data?.total ?? 0;
+
+  const isLoading = documentsQuery.isLoading || auditLogsQuery.isLoading || inventoryQuery.isLoading || crmQuery.isLoading;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Page header */}
@@ -140,31 +174,51 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" className="h-8 text-xs flex gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            New Document
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs border-border gap-1.5"
+            onClick={refetchAll}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            Refresh
+          </Button>
+          <Button asChild size="sm" className="h-8 text-xs gap-1.5">
+            <Link href="/documents/invoice/new">
+              <Plus className="h-3.5 w-3.5" />
+              New Invoice
+            </Link>
           </Button>
         </div>
       </div>
 
       {/* KPI Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 select-none">
+        {/* KPI 1: Invoices */}
         <div className="rounded-md border border-border bg-card p-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Posted Revenue (MTD)</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Posted Invoices</span>
             <div className="rounded-full bg-status-posted/10 p-1 text-status-posted">
               <Receipt className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-mono text-lg font-bold text-foreground">$138,650.00</span>
-            <span className="flex items-center font-mono text-[10px] font-medium text-status-posted">
-              <ArrowUpRight className="h-3 w-3" />+12.4%
+            <span className="font-mono text-lg font-bold text-foreground">
+              {postedInvoicesCount}
+            </span>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              / {totalInvoicesCount} total
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">vs. last month same period</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Invoices scoped to active branch</p>
         </div>
 
+        {/* KPI 2: Inventory */}
         <div className="rounded-md border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Inventory SKUs</span>
@@ -173,42 +227,52 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-mono text-lg font-bold text-foreground">1,248</span>
-            <span className="flex items-center font-mono text-[10px] font-medium text-status-pending">
-              <Clock className="h-3 w-3" />12 low stock
+            <span className="font-mono text-lg font-bold text-foreground">
+              {totalInventoryItems}
             </span>
+            {lowStockItemsCount > 0 && (
+              <span className="flex items-center font-mono text-[10px] font-medium text-status-pending">
+                <Clock className="h-3 w-3 mr-0.5" />
+                {lowStockItemsCount} low stock
+              </span>
+            )}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">3 warehouse locations active</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Stocked items in this branch</p>
         </div>
 
+        {/* KPI 3: CRM */}
         <div className="rounded-md border border-border bg-card p-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active Partners</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Customers</span>
             <div className="rounded-full bg-primary/10 p-1 text-primary">
               <Users className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-mono text-lg font-bold text-foreground">84</span>
-            <span className="flex items-center font-mono text-[10px] font-medium text-status-posted">
-              <ArrowUpRight className="h-3 w-3" />+4 new
+            <span className="font-mono text-lg font-bold text-foreground">
+              {activePartnersCount}
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">62 Customers | 22 Suppliers</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Active customer accounts</p>
         </div>
 
+        {/* KPI 4: Security */}
         <div className="rounded-md border border-border bg-card p-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Security Events</span>
-            <div className="rounded-full bg-status-rejected/10 p-1 text-status-rejected">
-              <AlertCircle className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Audit logs</span>
+            <div className="rounded-full bg-status-posted/10 p-1 text-status-posted">
+              <ShieldCheck className="h-3.5 w-3.5" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-mono text-lg font-bold text-foreground">0</span>
-            <span className="flex items-center font-mono text-[10px] font-medium text-status-posted">All Secure</span>
+            <span className="font-mono text-lg font-bold text-foreground">
+              {totalAuditEvents}
+            </span>
+            <span className="flex items-center font-mono text-[10px] font-medium text-status-posted ml-1">
+              All Secure
+            </span>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">Last security scan: 4 mins ago</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Immutable events logged</p>
         </div>
       </div>
 
@@ -217,48 +281,73 @@ export default function DashboardPage() {
         {/* Recent Documents table */}
         <div className="lg:col-span-2 space-y-3">
           <div className="flex items-center justify-between border-b border-border/60 pb-2">
-            <h2 className="text-sm font-bold tracking-tight text-foreground font-sans">Recent Documents & Entries</h2>
+            <h2 className="text-sm font-bold tracking-tight text-foreground font-sans">Recent Invoices</h2>
             <Badge variant="outline" className="font-mono text-[9px] text-muted-foreground px-1.5 py-0 border-border">
               <TrendingUp className="h-2.5 w-2.5 mr-1" />
               Live
             </Badge>
           </div>
-          <DataTable
-            columns={columns}
-            data={mockDocuments}
-            searchColumn="docNumber"
-            searchPlaceholder="Filter by doc number..."
-          />
+          {documentsQuery.isLoading ? (
+            <div className="flex items-center justify-center py-12 border border-border border-dashed rounded-md">
+              <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
+              <span className="text-xs text-muted-foreground font-mono">Loading invoices...</span>
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={documentsList}
+              searchColumn="docNumber"
+              searchPlaceholder="Filter by doc number..."
+            />
+          )}
         </div>
 
         {/* Audit trail */}
         <div className="space-y-3">
           <div className="flex items-center justify-between border-b border-border/60 pb-2">
             <h2 className="text-sm font-bold tracking-tight text-foreground font-sans">Security Audit Trail</h2>
-            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-primary hover:bg-muted font-semibold px-2">
-              View All
+            <Button asChild variant="ghost" size="sm" className="h-6 text-[10px] text-primary hover:bg-muted font-semibold px-2">
+              <Link href="/audit">View All</Link>
             </Button>
           </div>
           <div className="rounded-md border border-border bg-card p-3 space-y-3 select-none">
-            {[
-              { icon: FileCheck2, color: 'text-status-posted', bg: 'bg-status-posted/10', title: 'Document Posted', time: '14:15', detail: 'INV-2026-0001 posted by admin@xtechs.local' },
-              { icon: Clock, color: 'text-status-pending', bg: 'bg-status-pending/10', title: 'Approval Requested', time: '11:04', detail: 'PO-2026-0042 moved to PENDING_APPROVAL' },
-              { icon: Users, color: 'text-primary', bg: 'bg-primary/10', title: 'Metadata Cache Refreshed', time: '09:30', detail: 'Global layout config version 1.4.2 loaded' },
-              { icon: FileCheck2, color: 'text-status-posted', bg: 'bg-status-posted/10', title: 'Business Scope Switch', time: '08:45', detail: 'Scoped DB initialized for branch HQ Main' },
-            ].map((item, i) => (
-              <div key={i} className={`flex items-start gap-2 ${i < 3 ? 'border-b border-border/40 pb-2' : ''}`}>
-                <div className={`mt-0.5 rounded-full ${item.bg} p-1 ${item.color} shrink-0`}>
-                  <item.icon className="h-3 w-3" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-foreground font-sans">{item.title}</span>
-                    <span className="font-mono text-[9px] text-muted-foreground">{item.time}</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground truncate">{item.detail}</p>
-                </div>
+            {auditLogsQuery.isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
+                <span className="text-xs text-muted-foreground font-mono">Loading audit logs...</span>
               </div>
-            ))}
+            ) : recentAuditLogs.length === 0 ? (
+              <div className="text-center py-8 text-xs text-muted-foreground font-mono">
+                No audit logs found.
+              </div>
+            ) : (
+              recentAuditLogs.map((item) => {
+                const info = getAuditIconInfo(item.action);
+                const Icon = info.icon;
+                const time = new Date(item.createdAt).toLocaleTimeString('en-GB', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+                return (
+                  <div key={item.id} className="flex items-start gap-2 border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                    <div className={`mt-0.5 rounded-full ${info.bg} p-1 ${info.color} shrink-0`}>
+                      <Icon className="h-3 w-3" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground font-sans capitalize">
+                          {item.entityType.replace(/_/g, ' ')} {item.action}
+                        </span>
+                        <span className="font-mono text-[9px] text-muted-foreground">{time}</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate font-mono">
+                        Actor ID: {item.actorId.slice(0, 8)} | IP: {item.ipAddress ?? 'local'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

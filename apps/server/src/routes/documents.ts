@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { documents } from '@xtechs/db/schema';
 import {
   createDocumentInputSchema,
@@ -97,16 +97,36 @@ export async function documentRoutes(fastify: FastifyInstance) {
       const { type } = params.data;
       await enforceDocumentPermission(request, type, 'read');
 
+      const query = request.query as { page?: string; pageSize?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1'));
+      const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize ?? '20')));
+
       const scoped = createScopedDb(request.authContext!);
+      const where = and(
+        eq(documents.type, type),
+        scoped.filters(documents)
+      );
+
+      const [countResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(documents)
+        .where(where);
 
       // Fetch headers, ordered by newest first
-      const docs = await db
+      const data = await db
         .select()
         .from(documents)
-        .where(and(eq(documents.type, type), scoped.filters(documents)))
-        .orderBy(desc(documents.createdAt));
+        .where(where)
+        .orderBy(desc(documents.createdAt))
+        .limit(pageSize)
+        .offset((page - 1) * pageSize);
 
-      return reply.send(docs);
+      return reply.send({
+        data,
+        total: countResult?.count ?? 0,
+        page,
+        pageSize,
+      });
     }
   );
 

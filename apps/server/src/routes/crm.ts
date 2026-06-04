@@ -1,9 +1,11 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { requirePermission } from '../hooks/require-permission.js';
 import { createScopedDb } from '../lib/scoped-db.js';
 import { ValidationError } from '../lib/errors.js';
 import { CrmService } from '../lib/crm-service.js';
+import { customers, leads, opportunities } from '@xtechs/db/schema';
 import {
   createAddressSchema,
   createContactSchema,
@@ -44,6 +46,79 @@ const updateOppStageSchema = z.object({
 
 export async function crmRoutes(fastify: FastifyInstance) {
   const { db } = fastify;
+
+  // ==========================================
+  // LIST ENDPOINTS (GET)
+  // ==========================================
+
+  fastify.get(
+    '/api/v1/crm/customers',
+    { preHandler: [requirePermission('customer', 'read')] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const scoped = createScopedDb(request.authContext!);
+      const { tenantId, businessId, branchId } = scoped.auth.scope;
+      const query = request.query as { page?: string; pageSize?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1'));
+      const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize ?? '20')));
+
+      const where = and(
+        eq(customers.tenantId, tenantId),
+        eq(customers.businessId, businessId),
+        eq(customers.branchId, branchId),
+      );
+
+      const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(customers).where(where);
+      const data = await db.select().from(customers).where(where).orderBy(desc(customers.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
+
+      return reply.send({ data, total: countResult?.count ?? 0, page, pageSize });
+    }
+  );
+
+  fastify.get(
+    '/api/v1/crm/leads',
+    { preHandler: [requirePermission('lead', 'read')] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const scoped = createScopedDb(request.authContext!);
+      const { tenantId, businessId, branchId } = scoped.auth.scope;
+      const query = request.query as { page?: string; pageSize?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1'));
+      const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize ?? '20')));
+
+      const where = and(
+        eq(leads.tenantId, tenantId),
+        eq(leads.businessId, businessId),
+        eq(leads.branchId, branchId),
+      );
+
+      const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(leads).where(where);
+      const data = await db.select().from(leads).where(where).orderBy(desc(leads.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
+
+      return reply.send({ data, total: countResult?.count ?? 0, page, pageSize });
+    }
+  );
+
+  fastify.get(
+    '/api/v1/crm/opportunities',
+    { preHandler: [requirePermission('opportunity', 'read')] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const scoped = createScopedDb(request.authContext!);
+      const { tenantId, businessId, branchId } = scoped.auth.scope;
+      const query = request.query as { page?: string; pageSize?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1'));
+      const pageSize = Math.min(100, Math.max(1, parseInt(query.pageSize ?? '20')));
+
+      const where = and(
+        eq(opportunities.tenantId, tenantId),
+        eq(opportunities.businessId, businessId),
+        eq(opportunities.branchId, branchId),
+      );
+
+      const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(opportunities).where(where);
+      const data = await db.select().from(opportunities).where(where).orderBy(desc(opportunities.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
+
+      return reply.send({ data, total: countResult?.count ?? 0, page, pageSize });
+    }
+  );
 
   // ==========================================
   // ADDRESSES
